@@ -1,0 +1,27 @@
+
+
+protocol pItemInfo
+{
+	int itemId
+	int amount
+}
+
+protocol sAgentEnter
+{
+	int userUid
+	string userName
+	int level
+	int[] pos
+	bool created
+	short version
+	float bornTime
+	pItemInfo[] itemInfoList
+}
+
+protocol pTest
+{
+	int a
+	int b
+	int c
+	int d
+}

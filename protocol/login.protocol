@@ -1,0 +1,66 @@
+
+protocol roleInfo
+{
+	int uid
+	string name
+}
+
+protocol cLoginAuth
+{
+	string account
+}
+
+protocol sLoginAuth
+{
+	roleInfo[] list
+}
+
+protocol cCreateRole
+{
+	int career
+}
+
+protocol sCreateRole
+{
+	roleInfo[] list
+}
+
+protocol cLoginEnter
+{
+	string account
+	int uid
+}
+
+protocol sLoginEnter
+{
+	string token
+	string ip
+	int port
+}
+
+protocol c2s_agent_auth
+{
+	string token
+}
+
+protocol s2c_agent_enter
+{
+	int user_uid
+}
+
+protocol s2c_world_enter
+{
+	int user_uid
+}
+
+protocol s2c_scene_enter
+{
+	int scene_id
+	int scene_uid
+}
+
+protocol c2s_move
+{
+	float x
+	float z
+}

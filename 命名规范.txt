@@ -1,0 +1,32 @@
+
+
+文件内不导出的变量下横线开始
+local _amount
+
+文件内不导出的函数下横线开始
+local function _enter_city()
+
+end
+
+全局变量
+g_amount = 1
+
+枚举
+local eSCENE_TYPE = {
+	CITY = 1,
+	STAGE = 2
+}
+
+单个常量
+local kCONST = 1
+
+类名
+cScene = {}
+
+
+普通变量名和函数名
+local name_fuck = 1
+
+function name_fuck()
+
+end
