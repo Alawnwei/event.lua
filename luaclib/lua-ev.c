@@ -191,7 +191,7 @@ tcp_session_error(struct ev_session* ev_session, void* ud) {
 }
 
 static void
-read_complete(struct ev_session* ev_session, void* ud) {
+read_fd(struct ev_session* ev_session, void* ud) {
 	ltcp_session_t* ltcp_session = ud;
 	ltcp_session->execute = 1;
 
@@ -305,7 +305,7 @@ connect_complete(struct ev_session* session, void *userdata) {
 		lua_pushboolean(lev->main, 1);
 		lua_rawgeti(lev->main, LUA_REGISTRYINDEX, ltcp_session->ref);
 
-		ev_session_setcb(ltcp_session->session, read_complete, NULL, tcp_session_error, ltcp_session);
+		ev_session_setcb(ltcp_session->session, read_fd, NULL, tcp_session_error, ltcp_session);
 		ev_session_disable(ltcp_session->session, EV_WRITE);
 		ev_session_enable(ltcp_session->session, EV_READ);
 	}
@@ -325,7 +325,7 @@ accept_fd(struct ev_listener *listener, int fd, const char* addr, void *ud) {
 	ltcp_session_t* ltcp_session = tcp_session_create(lev->main, lev, lev_listener->header);
 	ltcp_session->session = ev_session_bind(lev->loop_ctx, fd, lev_listener->min, lev_listener->max);
 
-	ev_session_setcb(ltcp_session->session, read_complete, NULL, tcp_session_error, ltcp_session);
+	ev_session_setcb(ltcp_session->session, read_fd, NULL, tcp_session_error, ltcp_session);
 	ev_session_enable(ltcp_session->session, EV_READ);
 
 	lua_rawgeti(lev->main, LUA_REGISTRYINDEX, lev->callback);
@@ -430,7 +430,7 @@ lconnect(lua_State* L) {
 		lua_pushboolean(L, 1);
 	}
 	else {
-		ev_session_setcb(ltcp_session->session, read_complete, NULL, tcp_session_error, ltcp_session);
+		ev_session_setcb(ltcp_session->session, read_fd, NULL, tcp_session_error, ltcp_session);
 		ev_session_enable(ltcp_session->session, EV_READ);
 	}
 
@@ -446,7 +446,7 @@ lbind(lua_State* L) {
 
 	ltcp_session_t* ltcp_session = tcp_session_create(L, lev, 0);
 	ltcp_session->session = ev_session_bind(lev->loop_ctx, fd, min, max);
-	ev_session_setcb(ltcp_session->session, read_complete, NULL, tcp_session_error, ltcp_session);
+	ev_session_setcb(ltcp_session->session, read_fd, NULL, tcp_session_error, ltcp_session);
 	ev_session_enable(ltcp_session->session, EV_READ);
 	return 1;
 }
