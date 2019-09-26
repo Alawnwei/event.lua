@@ -27,7 +27,6 @@
 #define META_LISTENER 		"meta_listener"
 #define META_UDP 			"meta_udp"
 #define META_PIPE			"meta_pipe"
-#define META_REQUEST		"meta_request"
 
 #define HEADER_TYPE_WORD 	2
 #define HEADER_TYPE_DWORD 	4
@@ -72,14 +71,6 @@ typedef struct ltcp_session {
 	int threhold;
 } ltcp_session_t;
 
-typedef struct ludp_session {
-	lev_t* lev;
-	struct udp_session* session;
-	int ref;
-	int closed;
-	int callback;
-} ludp_session_t;
-
 typedef struct ltcp_listener {
 	lev_t* lev;
 	struct ev_listener* listener;
@@ -90,12 +81,13 @@ typedef struct ltcp_listener {
 	int max;
 } ltcp_listener_t;
 
-typedef struct lev_timer {
+typedef struct ludp_session {
 	lev_t* lev;
-	struct ev_timer io;
+	struct udp_session* session;
 	int ref;
-	struct lev_timer* next;
-} lev_timer_t;
+	int closed;
+	int callback;
+} ludp_session_t;
 
 typedef struct lpipe_session {
 	lev_t* lev;
@@ -105,19 +97,19 @@ typedef struct lpipe_session {
 	int closed;
 } lpipe_session_t;
 
-typedef struct lhttp_request {
-	lev_t* lev;
-	struct http_request* lrequest;
-	int ref;
-	int callback;
-} lhttp_request_t;
-
 typedef struct ldns_resolver {
 	lev_t* lev;
 	struct dns_resolver* core;
 	int ref;
 	int callback;
 } ldns_resolver_t;
+
+typedef struct lev_timer {
+	lev_t* lev;
+	struct ev_timer io;
+	int ref;
+	struct lev_timer* next;
+} lev_timer_t;
 
 union un_sockaddr {
 	struct sockaddr_un su;
