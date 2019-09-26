@@ -13,7 +13,7 @@ struct pipe_message {
 struct ev_loop_ctx;
 struct pipe_session;
 
-typedef void (*pipe_session_callback)(struct pipe_session*,struct pipe_message* message,void *userdata);
+typedef void(*pipe_session_callback)(struct pipe_session*, struct pipe_message* message, void *userdata);
 
 
 struct pipe_session* pipe_sesson_new(struct ev_loop_ctx* loop_ctx);

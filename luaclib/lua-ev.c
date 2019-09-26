@@ -268,11 +268,13 @@ read_fd(struct ev_session* ev_session, void* ud) {
 				int size = 0;
 				if (ltcp_session->offset > 0) {
 					data = tcp_session_collect(ltcp_session, ltcp_session->need, &size);
-				} else {
+				}
+				else {
 					data = ev_session_read_peek(ev_session, ltcp_session->need);
 					if (!data) {
 						data = tcp_session_collect(ltcp_session, ltcp_session->need, &size);
-					} else {
+					}
+					else {
 						size = ltcp_session->need;
 					}
 				}

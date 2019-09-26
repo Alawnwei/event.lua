@@ -18,31 +18,31 @@ typedef struct udp_session {
 void udp_session_destroy(udp_session_t* session);
 
 static void
-_udp_read_cb(struct ev_loop* loop,struct ev_io* io,int revents) {
+_udp_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 	udp_session_t* session = io->data;
 
-	for(;;) {
+	for (;;) {
 		struct sockaddr_in si;
 		socklen_t slen = sizeof(si);
 		int n = recvfrom(session->fd, session->recv_buffer, session->recv_size, 0, (struct sockaddr*)&si, &slen);
-		if (n<0) {
-			switch(errno) {
-				case EINTR:
-					continue;
-				case EAGAIN:
-					return;
-				default: {
-					break;
-				}
+		if (n < 0) {
+			switch (errno) {
+			case EINTR:
+				continue;
+			case EAGAIN:
+				return;
+			default: {
+				break;
+			}
 			}
 			if (session->event_cb) {
-				session->event_cb(session,session->userdata);
+				session->event_cb(session, session->userdata);
 			}
 			return;
 		}
 
-        char ip[INET6_ADDRSTRLEN];
-        inet_ntop(si.sin_family, (void*)&si.sin_addr, ip, sizeof(ip));
+		char ip[INET6_ADDRSTRLEN];
+		inet_ntop(si.sin_family, (void*)&si.sin_addr, ip, sizeof(ip));
 		if (session->read_cb) {
 			session->read_cb(session, session->recv_buffer, n, ip, ntohs(si.sin_port), session->userdata);
 		}
@@ -72,9 +72,9 @@ udp_session_new(struct ev_loop_ctx* loop_ctx, size_t recv_size) {
 	session->recv_buffer = malloc(recv_size);
 	session->recv_size = recv_size;
 
-	ev_io_init(&session->io,_udp_read_cb,session->fd,EV_READ);
+	ev_io_init(&session->io, _udp_read_cb, session->fd, EV_READ);
 	session->io.data = session;
-	ev_io_start(loop_ctx_get(loop_ctx),&session->io);
+	ev_io_start(loop_ctx_get(loop_ctx), &session->io);
 
 	return session;
 }
@@ -120,7 +120,7 @@ udp_session_write(udp_session_t* session, char* data, size_t size, const char* i
 	si.sin_addr.s_addr = inet_addr(ip);
 	si.sin_port = htons(port);
 
-	int total = socket_udp_write(session->fd,data,size,(struct sockaddr *)&si,sizeof(si));
+	int total = socket_udp_write(session->fd, data, size, (struct sockaddr *)&si, sizeof(si));
 	if (total < 0) {
 		return -1;
 	}

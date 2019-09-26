@@ -30,7 +30,7 @@ struct gate {
 	struct object_container* container;
 	uint32_t max_client;
 	uint32_t count;
-	
+
 	uint32_t max_offset;
 	uint32_t max_index;
 	uint32_t index;
@@ -61,13 +61,13 @@ typedef struct client {
 
 __thread uint8_t CACHED_BUFFER[CACHED_SIZE];
 
-static void 
-close_client(int id,void* data) {
+static void
+close_client(int id, void* data) {
 	client_t* client = data;
 	ev_session_free(client->session);
-	ev_timer_stop(loop_ctx_get(client->gate->loop_ctx),(struct ev_timer*)&client->timer);
-	uint32_t slot = SLOT(client->id,client->gate->max_offset);
-	container_remove(client->gate->container,slot);
+	ev_timer_stop(loop_ctx_get(client->gate->loop_ctx), (struct ev_timer*)&client->timer);
+	uint32_t slot = SLOT(client->id, client->gate->max_offset);
+	container_remove(client->gate->container, slot);
 	client->gate->count--;
 	free(client);
 }
@@ -86,9 +86,9 @@ release_client(client_t* client) {
 }
 
 static inline client_t*
-get_client(gate_t* gate,uint32_t id) {
-	uint32_t slot = SLOT(id,gate->max_offset);
-	client_t* client = container_get(gate->container,slot);
+get_client(gate_t* gate, uint32_t id) {
+	uint32_t slot = SLOT(id, gate->max_offset);
+	client_t* client = container_get(gate->container, slot);
 	if (!client || client->id != id) {
 		return NULL;
 	}
@@ -111,8 +111,8 @@ get_buffer(uint32_t size) {
 static inline void
 free_buffer(uint8_t* buffer) {
 	if (buffer != CACHED_BUFFER) {
-    	free(buffer);
-    }
+		free(buffer);
+	}
 }
 
 static void
@@ -124,12 +124,12 @@ client_exit(client_t* client, const char* reason) {
 }
 
 static void
-client_error(struct ev_session* session,void* ud) {
+client_error(struct ev_session* session, void* ud) {
 	client_t* client = ud;
 	client_exit(client, "client error");
 }
 
-static int 
+static int
 read_header(client_t* client) {
 	size_t total = ev_session_input_size(client->session);
 	if (total < HEADER_SIZE) {
@@ -137,7 +137,7 @@ read_header(client_t* client) {
 	}
 
 	uint8_t header[HEADER_SIZE];
-	ev_session_read(client->session,(char*)header, HEADER_SIZE);
+	ev_session_read(client->session, (char*)header, HEADER_SIZE);
 
 	client->need = header[0] | header[1] << 8;
 	client->need -= HEADER_SIZE;
@@ -150,7 +150,7 @@ read_header(client_t* client) {
 	return 0;
 }
 
-static int 
+static int
 read_body(client_t* client) {
 	size_t total = ev_session_input_size(client->session);
 	if (total < client->need) {
@@ -159,24 +159,24 @@ read_body(client_t* client) {
 
 	uint8_t* data = get_buffer(client->need);
 
-	ev_session_read(client->session,(char*)data,client->need);
-	
+	ev_session_read(client->session, (char*)data, client->need);
+
 	if (message_decrypt(&client->seed, data, client->need) < 0) {
 		free_buffer(data);
-	    client_exit(client, "client message decrypt error");
+		client_exit(client, "client message decrypt error");
 		return -1;
 	}
 
 	uint16_t id = data[2] | data[3] << 8;
 
-    client->freq++;
-    client->tick = loop_ctx_now(client->gate->loop_ctx);
-    client->gate->data(client->gate->ud,client->id,id,&data[4],client->need - 4);
-    client->need = 0;
+	client->freq++;
+	client->tick = loop_ctx_now(client->gate->loop_ctx);
+	client->gate->data(client->gate->ud, client->id, id, &data[4], client->need - 4);
+	client->need = 0;
 
-    free_buffer(data);
+	free_buffer(data);
 
-    return 0;
+	return 0;
 }
 
 static void
@@ -185,12 +185,13 @@ client_read(struct ev_session* ev_session, void* ud) {
 
 	grab_client(client);
 
-	for(;;) {
+	for (;;) {
 		if (client->need == 0) {
 			if (read_header(client) < 0) {
 				break;
 			}
-		} else {
+		}
+		else {
 			if (read_body(client) < 0) {
 				break;
 			}
@@ -198,22 +199,23 @@ client_read(struct ev_session* ev_session, void* ud) {
 	}
 
 	release_client(client);
-}	
+}
 
 static void
-client_update(struct ev_loop* loop,struct ev_timer* io,int revents) {
+client_update(struct ev_loop* loop, struct ev_timer* io, int revents) {
 	assert(revents & EV_TIMER);
 	client_t* client = io->data;
 	grab_client(client);
 
 	if (ev_session_output_size(client->session) > WARN_OUTPUT_FLOW) {
-		fprintf(stderr,"client:%d more then %dkb flow need to send out\n",client->id,WARN_OUTPUT_FLOW/1024);
+		fprintf(stderr, "client:%d more then %dkb flow need to send out\n", client->id, WARN_OUTPUT_FLOW / 1024);
 	}
 
 	if (client->freq > client->gate->max_freq) {
 		snprintf(client->gate->error, ERROR_SIZE, "client receive message too much:%d in last 1s", client->freq);
 		client_exit(client, client->gate->error);
-	} else {
+	}
+	else {
 		client->freq = 0;
 		if (client->tick != 0 && loop_ctx_now(client->gate->loop_ctx) - client->tick > client->gate->timeout) {
 			client_exit(client, "client timeout");
@@ -222,7 +224,7 @@ client_update(struct ev_loop* loop,struct ev_timer* io,int revents) {
 	release_client(client);
 }
 
-static void 
+static void
 client_accept(struct ev_listener *listener, int fd, const char* addr, void *ud) {
 	gate_t* gate = ud;
 
@@ -242,7 +244,7 @@ client_accept(struct ev_listener *listener, int fd, const char* addr, void *ud) 
 
 	struct ev_session* session = ev_session_bind(gate->loop_ctx, fd, 64, 1024 * 64);
 	int slot = container_add(gate->container, client);
-	
+
 	uint32_t index = gate->index++;
 	if (index >= gate->max_index)
 		gate->index = 1;
@@ -272,12 +274,12 @@ close_complete(struct ev_session* ev_session, void* ud) {
 static void
 close_error(struct ev_session* session, void* ud) {
 	client_t* client = ud;
-	fprintf(stderr,"client:%d close error\n",client->id);
+	fprintf(stderr, "client:%d close error\n", client->id);
 	release_client(client);
 }
 
 gate_t*
-gate_create(struct ev_loop_ctx* loop_ctx,uint32_t max_client, uint32_t max_freq, uint32_t timeout,void* ud) {
+gate_create(struct ev_loop_ctx* loop_ctx, uint32_t max_client, uint32_t max_freq, uint32_t timeout, void* ud) {
 	if (max_client < 1 || max_freq < 1 || timeout < 1) {
 		return NULL;
 	}
@@ -295,7 +297,7 @@ gate_create(struct ev_loop_ctx* loop_ctx,uint32_t max_client, uint32_t max_freq,
 	gate->max_client = max_client;
 
 	gate->max_offset = 1;
-	while(max_client > 0) {
+	while (max_client > 0) {
 		max_client /= 10;
 		gate->max_offset *= 10;
 	}
@@ -306,29 +308,29 @@ gate_create(struct ev_loop_ctx* loop_ctx,uint32_t max_client, uint32_t max_freq,
 }
 
 int
-gate_start(gate_t* gate,const char* ip,int port) {
+gate_start(gate_t* gate, const char* ip, int port) {
 	struct sockaddr_in si;
 	si.sin_family = AF_INET;
 	si.sin_addr.s_addr = inet_addr(ip);
 	si.sin_port = htons(port);
 
 	int flag = SOCKET_OPT_NOBLOCK | SOCKET_OPT_CLOSE_ON_EXEC | SOCKET_OPT_REUSEABLE_ADDR;
-	gate->listener = ev_listener_bind(gate->loop_ctx,(struct sockaddr*)&si,sizeof(si),16,flag,client_accept,gate);
+	gate->listener = ev_listener_bind(gate->loop_ctx, (struct sockaddr*)&si, sizeof(si), 16, flag, client_accept, gate);
 	if (!gate->listener) {
 		return -1;
 	}
 
 	if (port == 0) {
-		char addr[INET6_ADDRSTRLEN] = {0};
-		if (ev_listener_addr(gate->listener,addr,INET6_ADDRSTRLEN,&port) < 0) {
+		char addr[INET6_ADDRSTRLEN] = { 0 };
+		if (ev_listener_addr(gate->listener, addr, INET6_ADDRSTRLEN, &port) < 0) {
 			return port;
 		}
 	}
 	return port;
-} 
+}
 
 void
-gate_callback(gate_t* gate,accept_callback accept,close_callback close,data_callback data) {
+gate_callback(gate_t* gate, accept_callback accept, close_callback close, data_callback data) {
 	gate->accept = accept;
 	gate->close = close;
 	gate->data = data;
@@ -346,8 +348,8 @@ gate_stop(gate_t* gate) {
 }
 
 int
-gate_close(gate_t* gate,uint32_t client_id,int grace) {
-	client_t* client = get_client(gate,client_id);
+gate_close(gate_t* gate, uint32_t client_id, int grace) {
+	client_t* client = get_client(gate, client_id);
 	if (!client) {
 		return -1;
 	}
@@ -367,8 +369,8 @@ gate_close(gate_t* gate,uint32_t client_id,int grace) {
 }
 
 int
-gate_send(gate_t* gate,uint32_t client_id,ushort message_id,void* data,size_t size) {
-	client_t* client = get_client(gate,client_id);
+gate_send(gate_t* gate, uint32_t client_id, ushort message_id, void* data, size_t size) {
+	client_t* client = get_client(gate, client_id);
 	if (!client) {
 		return -1;
 	}
@@ -376,13 +378,13 @@ gate_send(gate_t* gate,uint32_t client_id,ushort message_id,void* data,size_t si
 
 	ushort total = size + sizeof(short) * 2;
 
-    uint8_t* mb = malloc(total);
-    memcpy(mb, &total, sizeof(ushort));
-    memcpy(mb + sizeof(ushort), &message_id, sizeof(ushort));
-    memcpy(mb + sizeof(ushort) * 2, data, size);
+	uint8_t* mb = malloc(total);
+	memcpy(mb, &total, sizeof(ushort));
+	memcpy(mb + sizeof(ushort), &message_id, sizeof(ushort));
+	memcpy(mb + sizeof(ushort) * 2, data, size);
 
-    int ret = ev_session_write(client->session,(char*)mb,total);
-    release_client(client);
+	int ret = ev_session_write(client->session, (char*)mb, total);
+	release_client(client);
 	if (ret < 0) {
 		free(mb);
 		return -1;
@@ -393,7 +395,7 @@ gate_send(gate_t* gate,uint32_t client_id,ushort message_id,void* data,size_t si
 void
 gate_release(gate_t* gate) {
 	gate_stop(gate);
-	container_foreach(gate->container,close_client);
+	container_foreach(gate->container, close_client);
 	container_release(gate->container);
 	free(gate);
 }

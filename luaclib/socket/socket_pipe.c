@@ -7,13 +7,13 @@ typedef struct pipe_session {
 	struct ev_io io;
 	int recv_fd;
 	int send_fd;
-	
+
 	pipe_session_callback read_cb;
 	void* userdata;
 } pipe_session_t;
 
 static void
-_pipe_read_cb(struct ev_loop* loop,struct ev_io* io,int revents) {
+_pipe_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 	pipe_session_t* session = io->data;
 
 	for (;;) {
@@ -24,7 +24,8 @@ _pipe_read_cb(struct ev_loop* loop,struct ev_io* io,int revents) {
 				continue;
 			else if (errno == EAGAIN) {
 				return;
-			} else {
+			}
+			else {
 				assert(0);
 			}
 		}

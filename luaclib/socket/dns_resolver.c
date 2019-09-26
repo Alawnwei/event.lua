@@ -37,7 +37,7 @@ task_hash_set(task_hash_t* hash, int fd, dns_task_t* task) {
 dns_task_t*
 task_hash_get(task_hash_t* hash, int fd) {
 	khiter_t k = kh_get(task, hash, fd);
-	if ( k == kh_end(hash) ) {
+	if (k == kh_end(hash)) {
 		return NULL;
 	}
 	return kh_value(hash, k);
@@ -49,19 +49,19 @@ task_hash_del(task_hash_t* hash, int fd) {
 	kh_del(task, hash, k);
 }
 
-size_t 
+size_t
 task_hash_count(task_hash_t* hash) {
 	return kh_size(hash);
 }
 
 static void
-timer_cb(struct ev_loop* loop,struct ev_timer* io,int revents) {
+timer_cb(struct ev_loop* loop, struct ev_timer* io, int revents) {
 	dns_resolver_t* resolver = io->data;
 	ares_process_fd(resolver->channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
 static void
-dns_poll_cb(struct ev_loop* loop,struct ev_io* io,int revents) {
+dns_poll_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 	dns_resolver_t* resolver = io->data;
 
 	int w = ARES_SOCKET_BAD, r = ARES_SOCKET_BAD;
@@ -78,7 +78,7 @@ dns_sock_state_cb(void* ud, ares_socket_t sock, int readable, int writable) {
 	if (readable || writable) {
 		if (!task) {
 			if (!ev_is_active((struct ev_timer*)&resolver->io)) {
-				ev_timer_start(loop_ctx_get(resolver->ev_loop),(struct ev_timer*)&resolver->io);
+				ev_timer_start(loop_ctx_get(resolver->ev_loop), (struct ev_timer*)&resolver->io);
 			}
 
 			task = malloc(sizeof(*task));
@@ -86,10 +86,10 @@ dns_sock_state_cb(void* ud, ares_socket_t sock, int readable, int writable) {
 			task->fd = sock;
 
 			task->rio.data = resolver;
-			ev_io_init(&task->rio,dns_poll_cb,sock,EV_READ);
+			ev_io_init(&task->rio, dns_poll_cb, sock, EV_READ);
 
 			task->wio.data = resolver;
-			ev_io_init(&task->wio,dns_poll_cb,sock,EV_WRITE);
+			ev_io_init(&task->wio, dns_poll_cb, sock, EV_WRITE);
 
 			task_hash_set(resolver->hash, sock, task);
 		}
@@ -101,9 +101,10 @@ dns_sock_state_cb(void* ud, ares_socket_t sock, int readable, int writable) {
 		if (writable) {
 			ev_io_start(loop_ctx_get(resolver->ev_loop), &task->wio);
 		}
-	} else {
+	}
+	else {
 		task_hash_del(resolver->hash, sock);
-		
+
 		if (ev_is_active(&task->rio)) {
 			ev_io_stop(loop_ctx_get(resolver->ev_loop), &task->rio);
 		}
@@ -114,8 +115,8 @@ dns_sock_state_cb(void* ud, ares_socket_t sock, int readable, int writable) {
 		free(task);
 
 		if (task_hash_count(resolver->hash) == 0 && ev_is_active((struct ev_timer*)&resolver->io)) {
-			ev_timer_stop(loop_ctx_get(resolver->ev_loop),(struct ev_timer*)&resolver->io);
-		} 
+			ev_timer_stop(loop_ctx_get(resolver->ev_loop), (struct ev_timer*)&resolver->io);
+		}
 	}
 }
 
@@ -125,13 +126,13 @@ dns_resolver_new(struct ev_loop_ctx* ev_loop) {
 
 	dns_resolver_t* resolver = malloc(sizeof(*resolver));
 	memset(resolver, 0, sizeof(*resolver));
-	
+
 	resolver->opts.timeout = 3000;
 	resolver->opts.tries = 1;
-	resolver->opts.sock_state_cb_data  = resolver;
+	resolver->opts.sock_state_cb_data = resolver;
 	resolver->opts.sock_state_cb = dns_sock_state_cb;
 
-	if (ares_init_options(&resolver->channel, &resolver->opts, ARES_OPT_TIMEOUTMS | ARES_OPT_TRIES | ARES_OPT_TRIES |ARES_OPT_SOCK_STATE_CB) != ARES_SUCCESS) {
+	if (ares_init_options(&resolver->channel, &resolver->opts, ARES_OPT_TIMEOUTMS | ARES_OPT_TRIES | ARES_OPT_TRIES | ARES_OPT_SOCK_STATE_CB) != ARES_SUCCESS) {
 		free(resolver);
 		ares_library_cleanup();
 		return NULL;
@@ -141,7 +142,7 @@ dns_resolver_new(struct ev_loop_ctx* ev_loop) {
 
 	resolver->ev_loop = ev_loop;
 	resolver->io.data = resolver;
-	ev_timer_init((struct ev_timer*)&resolver->io,timer_cb,0.1,0.1);
+	ev_timer_init((struct ev_timer*)&resolver->io, timer_cb, 0.1, 0.1);
 
 	return resolver;
 }
@@ -153,7 +154,7 @@ dns_resolver_delete(dns_resolver_t* resolver) {
 	ares_library_cleanup();
 	free(resolver);
 }
- 
+
 static void
 query_callback(void* ud, int status, int timeouts, struct hostent *host) {
 	query_param_t* param = ud;
