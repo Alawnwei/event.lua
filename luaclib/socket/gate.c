@@ -240,7 +240,7 @@ client_accept(struct ev_listener *listener, int fd, const char* addr, void *ud) 
 	client_t* client = malloc(sizeof(*client));
 	memset(client, 0, sizeof(*client));
 
-	struct ev_session* session = ev_session_bind(gate->loop_ctx, fd);
+	struct ev_session* session = ev_session_bind(gate->loop_ctx, fd, 64, 1024 * 64);
 	int slot = container_add(gate->container, client);
 	
 	uint32_t index = gate->index++;

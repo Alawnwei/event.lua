@@ -1,5 +1,6 @@
 
 #include "socket_tcp.h"
+#include "ring_buffer.h"
 
 #define MIN_BUFFER_SIZE 256
 #define MAX_BUFFER_SIZE 1024*1024
@@ -40,9 +41,8 @@ typedef struct ev_session {
 	
 	int fd;
 	int alive;
-	
-	int threshold;
-	ev_buffer_t input;
+
+	ring_buffer_t* input;
 	ev_buffer_t output;
 
 	ev_session_callback read_cb;
@@ -120,13 +120,15 @@ static void
 _ev_read_cb(struct ev_loop* loop,struct ev_io* io,int revents) {
 	ev_session_t* ev_session = io->data;
 
-	struct data_buffer* rdb = buffer_next(ev_session->loop_ctx);
-	rdb->data = malloc(ev_session->threshold);
-	rdb->size = ev_session->threshold;
 	int fail = 0;
 	//一次性接完数据，再回调(为了预防恶意流，理论上应该接一次回调一次，在上层判断数据合法性)
 	for(;;) {
-		int n = (int)read(ev_session->fd, rdb->data + rdb->wpos, rdb->size - rdb->wpos);
+		uint32_t space;
+		char* data = rb_reserve(ev_session->input, &space);
+		if (!data || space == 0) {
+			break;
+		}
+		int n = (int)read(ev_session->fd, data, space);
 		if (n < 0) {
 			if (errno) {
 				if (errno == EINTR) {
@@ -144,22 +146,12 @@ _ev_read_cb(struct ev_loop* loop,struct ev_io* io,int revents) {
 			fail = 1;
 			break;
 		} else {
-			rdb->wpos += n;
-	
-			if (rdb->wpos == rdb->size) {
-				ev_session->threshold *= 2;
-				if (ev_session->threshold > MAX_BUFFER_SIZE)
-					ev_session->threshold = MAX_BUFFER_SIZE;
-			} else {
-				ev_session->threshold /= 2;
-				if (ev_session->threshold < MIN_BUFFER_SIZE)
-					ev_session->threshold = MIN_BUFFER_SIZE;
+			rb_commit(ev_session->input, n);
+			if (n < space) {
+				break;
 			}
-			break;
 		}
 	}
-
-	buffer_append(&ev_session->input,rdb);
 
 	if (fail) {
 		ev_session_disable(ev_session,EV_READ | EV_WRITE);
@@ -303,40 +295,40 @@ ev_listener_free(ev_listener_t* listener) {
 }
 
 ev_session_t*
-ev_session_bind(struct ev_loop_ctx* loop_ctx,int fd) {
+ev_session_bind(struct ev_loop_ctx* loop_ctx,int fd, int min, int max) {
 	ev_session_t* ev_session = malloc(sizeof(*ev_session));
 	memset(ev_session,0,sizeof(*ev_session));
 	ev_session->loop_ctx = loop_ctx;
 	ev_session->fd = fd;
-	ev_session->threshold = MIN_BUFFER_SIZE;
 
 	ev_session->rio.data = ev_session;
 	ev_io_init(&ev_session->rio,_ev_read_cb,ev_session->fd,EV_READ);
 
 	ev_session->wio.data = ev_session;
 	ev_io_init(&ev_session->wio,_ev_write_cb,ev_session->fd,EV_WRITE);
+	ev_set_priority(&ev_session->wio, EV_MAXPRI);
 
 	ev_session->alive = 1;
+
+	ev_session->input = rb_new(min, max);
 
 	return ev_session;
 }
 
-ev_session_t*
-ev_session_connect(struct ev_loop_ctx* loop_ctx,struct sockaddr* addr, int addrlen, int block,int* status) {
+int
+ev_session_connect(struct ev_loop_ctx* loop_ctx,struct sockaddr* addr, int addrlen, int nonblock,int* status) {
 	int result = 0;
-	int fd = socket_connect(addr,addrlen,block,&result);
+	int fd = socket_connect(addr,addrlen,nonblock,&result);
 	if (fd < 0) {
 		*status = CONNECT_STATUS_CONNECT_FAIL;
-		return NULL;
+		return -1;
 	}
-	ev_session_t* ev_session = ev_session_bind(loop_ctx,fd);
-
-	//if connect op is block,result here must be true
 	*status = CONNECT_STATUS_CONNECTING;
-	if (result)
+	if (result) {
 		*status = CONNECT_STATUS_CONNECTED;
+	}
 
-	return ev_session;
+	return fd;
 }
 
 void
@@ -345,7 +337,7 @@ ev_session_free(ev_session_t* ev_session) {
 	close(ev_session->fd);
 	ev_session_disable(ev_session,EV_READ | EV_WRITE);
 
-	buffer_release(&ev_session->input);
+	rb_delete(ev_session->input);
 	buffer_release(&ev_session->output);
 
 	free(ev_session);
@@ -394,7 +386,7 @@ ev_session_fd(ev_session_t* ev_session) {
 
 size_t 
 ev_session_input_size(ev_session_t* ev_session) {
-	return ev_session->input.total;
+	return rb_length(ev_session->input);
 }
 
 size_t
@@ -402,96 +394,20 @@ ev_session_output_size(ev_session_t* ev_session) {
 	return ev_session->output.total;
 }
 
-static inline int
-check_eol(data_buffer_t* db,int from,const char* sep,size_t sep_len) {
-	while (db) {
-		int sz = db->wpos - from;
-		if (sz >= sep_len) {
-			return memcmp(db->data+from,sep,sep_len) == 0;
-		}
-
-		if (sz > 0) {
-			if (memcmp(db->data+from,sep,sz)) {
-				return 0;
-			}
-		}
-		db = db->next;
-		sep += sz;
-		sep_len -= sz;
-		from = 0;
-	}
-	return 0;
-}
-
-static inline int
-search_eol(ev_session_t* ev_session,const char* sep,size_t sep_len) {
-	data_buffer_t* current = ev_session->input.head;
-	int offset = 0;
-	while(current) {
-		int i = current->rpos;
-		for(; i < current->wpos;i++) {
-			int ret = check_eol(current,i,sep,sep_len);
-			if (ret == 1) {
-				return offset + sep_len;
-			}
-			++offset;
-		}
-		current = current->next;
-	}
-
-	return -1;
-}
-
 size_t 
 ev_session_read(struct ev_session* ev_session,char* result,size_t size) {
-	if (size > ev_session->input.total)
-		size = ev_session->input.total;
-
-	int offset = 0;
-	int need = size;
-	while (need > 0) {
-		data_buffer_t* rdb = ev_session->input.head;
-		if (rdb->rpos + need < rdb->wpos) {
-			memcpy(result + offset,rdb->data + rdb->rpos,need);
-			rdb->rpos += need;
-
-			offset += need;
-			assert(offset == size);
-			need = 0;
-		} else {
-			int left = rdb->wpos - rdb->rpos;
-			memcpy(result + offset,rdb->data + rdb->rpos,left);
-			offset += left;
-			need -= left;
-			free(rdb->data);
-			
-			data_buffer_t* tmp = ev_session->input.head;
-
-			ev_session->input.head = ev_session->input.head->next;
-			if (ev_session->input.head == NULL) {
-				ev_session->input.head = ev_session->input.tail = NULL;
-				assert(need == 0);
-			}
-
-			buffer_reclaim(ev_session->loop_ctx,tmp);
-		}
+	if (size > ev_session_input_size(ev_session)) {
+		size = ev_session_input_size(ev_session);
 	}
-	ev_session->input.total -= size;
-
+	result = rb_copy(ev_session->input, result, size);
 	return size;
 }
 
-char* ev_session_read_util(ev_session_t* ev_session,const char* sep,size_t size,char* out,size_t out_size,size_t* length) {
-	int offset = search_eol(ev_session,sep,size);
-	if (offset < 0) {
-		return NULL;
-	}
-	*length = offset;
-	char* result = out;
-	if (offset > out_size) {
-		result = malloc(offset);
-	}
-	ev_session_read(ev_session,result,offset);
+char* 
+ev_session_read_next(struct ev_session* ev_session,size_t* size) {
+	uint32_t length = 0;
+	char* result = rb_next(ev_session->input, &length);
+	*size = length;
 	return result;
 }
 
@@ -505,8 +421,8 @@ ev_session_write(ev_session_t* ev_session,char* data,size_t size) {
 		if (total < 0) {
 			ev_session_disable(ev_session,EV_READ | EV_WRITE);
 			ev_session->alive = 0;
-			if (ev_session->event_cb)
-				ev_session->event_cb(ev_session,ev_session->userdata);
+			// if (ev_session->event_cb)
+			// 	ev_session->event_cb(ev_session,ev_session->userdata);
 			return -1;
 		} else {
 			if (total == size) {

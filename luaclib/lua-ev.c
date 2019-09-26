@@ -60,7 +60,7 @@ typedef struct ltcp_session {
 	struct ev_session* session;
 	int ref;
 	int closed;
-	int connect_session;
+	int wakeup;
 
 	int execute;
 	int markdead;
@@ -161,7 +161,7 @@ tcp_session_create(lua_State* L, lev_t* lev,int fd,int header) {
 	ltcp_session->threhold = MB;
 
 	if (fd > 0) {
-		ltcp_session->session = ev_session_bind(lev->loop_ctx, fd);
+		ltcp_session->session = ev_session_bind(lev->loop_ctx, fd, 64, 1024 * 1024);
 	}
 
 	ltcp_session->ref = meta_init(L,META_SESSION);
@@ -283,7 +283,7 @@ connect_complete(struct ev_session* session,void *userdata) {
 
 	lua_rawgeti(lev->main, LUA_REGISTRYINDEX, lev->callback);
 	lua_pushinteger(lev->main, LUA_EV_CONNECT);
-	lua_pushinteger(lev->main, ltcp_session->connect_session);
+	lua_pushinteger(lev->main, ltcp_session->wakeup);
 
 	int fd = ev_session_fd(session);
 	int error;
@@ -389,39 +389,42 @@ make_addr(lua_State* L, int index, union un_sockaddr* sa, int* len, int listen) 
 }
 
 static int
-_connect(lua_State* L) {
+lconnect(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
-	int header = lua_tointeger(L, 2);
+	int header = luaL_checkinteger(L, 2);
 	if (header != 0) {
 		if (header != HEADER_TYPE_WORD && header != HEADER_TYPE_DWORD) {
 			luaL_error(L,"connect error:header size:%d",header);
 		}
 	}
-
-	int connect_session = lua_tointeger(L, 3);
+	int min = luaL_checkinteger(L, 3);
+	int max = luaL_checkinteger(L, 4);
+	int wakeup = luaL_checkinteger(L, 5);
 
 	union un_sockaddr sa;
 	int len = 0;
-	struct sockaddr* addr = make_addr(L, 4, &sa, &len, 0);
+	struct sockaddr* addr = make_addr(L, 6, &sa, &len, 0);
 
-	int block_connect = 1;
-	if (connect_session > 0) {
-		block_connect = 0;
+	int nonblock = 0;
+	if (wakeup > 0) {
+		nonblock = 1;
 	}
 
 	int status;
 	ltcp_session_t* ltcp_session = tcp_session_create(L,lev,-1,header);
 	ltcp_session->lev = lev;
-	ltcp_session->connect_session = connect_session;
-	ltcp_session->session = ev_session_connect(lev->loop_ctx,addr,len,block_connect,&status);
+	ltcp_session->wakeup = wakeup;
 
-	if (status == CONNECT_STATUS_CONNECT_FAIL) {
+	int fd = ev_session_connect(lev->loop_ctx,addr,len,nonblock,&status);
+	if (fd < 0) {
 		lua_pushboolean(L,0);
 		lua_pushstring(L,strerror(errno));
 		return 2;
 	}
 
-	if (!block_connect) {
+	ltcp_session->session = ev_session_bind(lev->loop_ctx, fd, min, max);
+
+	if (nonblock) {
 		ev_session_setcb(ltcp_session->session,NULL,connect_complete,NULL,ltcp_session);
 		ev_session_enable(ltcp_session->session,EV_WRITE);
 		lua_pushboolean(L,1);
@@ -549,25 +552,6 @@ _tcp_session_read(lua_State* L) {
 	return 1;
 }
 
-static int
-_tcp_session_read_util(lua_State* L) {
-	ltcp_session_t* ltcp_session = get_tcp_session(L, 1);
-	size_t size;
-	const char* sep = lua_tolstring(L,2,&size);
-
-	size_t length;
-	char* data = ev_session_read_util(ltcp_session->session,sep,size,THREAD_CACHED_BUFFER,THREAD_CACHED_SIZE,&length);
-	if (!data) {
-		return 0;
-	}
-	
-	lua_pushlstring(L, data, length);
-
-	if (data != THREAD_CACHED_BUFFER) {
-		free(data);
-	}
-	return 1;
-}
 
 static int
 _tcp_session_alive(lua_State* L) {
@@ -1182,7 +1166,7 @@ luaopen_ev_core(lua_State* L) {
 	luaL_newmetatable(L, META_EVENT);
 	const luaL_Reg meta_event[] = {
 		{ "listen", _listen },
-		{ "connect", _connect },
+		{ "connect", lconnect },
 		{ "bind", _bind },
 		{ "timer", _timer },
 		{ "udp", _udp_session_new },
@@ -1205,7 +1189,6 @@ luaopen_ev_core(lua_State* L) {
 	const luaL_Reg meta_session[] = {
 		{ "write", _tcp_session_write },
 		{ "read", _tcp_session_read },
-		{ "read_util", _tcp_session_read_util },
 		{ "alive", _tcp_session_alive },
 		{ "close", _tcp_session_close },
 		{ NULL, NULL },
