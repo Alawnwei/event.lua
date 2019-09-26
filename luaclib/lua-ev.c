@@ -495,7 +495,7 @@ lbind(lua_State* L) {
 
 
 static int
-_tcp_session_write(lua_State* L) {
+ltcp_session_write(lua_State* L) {
 	ltcp_session_t* ltcp_session = get_tcp_session(L, 1);
 
 	int noheader = 0;
@@ -578,7 +578,7 @@ _tcp_session_write(lua_State* L) {
 }
 
 static int
-_tcp_session_read(lua_State* L) {
+ltcp_session_read(lua_State* L) {
 	ltcp_session_t* ltcp_session = get_tcp_session(L, 1);
 	size_t size = luaL_optinteger(L, 2, 0);
 
@@ -604,14 +604,14 @@ _tcp_session_read(lua_State* L) {
 
 
 static int
-_tcp_session_alive(lua_State* L) {
+ltcp_session_alive(lua_State* L) {
 	ltcp_session_t* ltcp_session = (ltcp_session_t*)lua_touserdata(L, 1);
 	lua_pushboolean(L, ltcp_session->closed == 0);
 	return 1;
 }
 
 static int
-_tcp_session_close(lua_State* L) {
+ltcp_session_close(lua_State* L) {
 	ltcp_session_t* ltcp_session = get_tcp_session(L, 1);
 
 	luaL_checktype(L, 2, LUA_TBOOLEAN);
@@ -737,7 +737,7 @@ timeout(struct ev_loop* loop, struct ev_timer* io, int revents) {
 }
 
 static int
-_timer(lua_State* L) {
+ltimer(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
 
 	double ti = luaL_checknumber(L, 2);
@@ -766,7 +766,7 @@ _timer(lua_State* L) {
 }
 
 static int
-_timer_cancel(lua_State* L) {
+ltimer_cancel(lua_State* L) {
 	lev_timer_t* timer = (lev_timer_t*)lua_touserdata(L, 1);
 	if (ev_is_active(&timer->io) == 0) {
 		lua_pushboolean(L, 0);
@@ -783,7 +783,7 @@ _timer_cancel(lua_State* L) {
 }
 
 static int
-_timer_alive(lua_State* L) {
+ltimer_alive(lua_State* L) {
 	lev_timer_t* timer = (lev_timer_t*)lua_touserdata(L, 1);
 	lua_pushboolean(L, ev_is_active(&timer->io));
 	return 1;
@@ -1224,7 +1224,7 @@ luaopen_ev_core(lua_State* L) {
 		{ "listen", llisten },
 		{ "connect", lconnect },
 		{ "bind", lbind },
-		{ "timer", _timer },
+		{ "timer", ltimer },
 		{ "udp", _udp_session_new },
 		{ "pipe", _lpipe_new },
 		{ "gate", _lgate_new },
@@ -1243,10 +1243,10 @@ luaopen_ev_core(lua_State* L) {
 
 	luaL_newmetatable(L, META_SESSION);
 	const luaL_Reg meta_session[] = {
-		{ "write", _tcp_session_write },
-		{ "read", _tcp_session_read },
-		{ "alive", _tcp_session_alive },
-		{ "close", _tcp_session_close },
+		{ "write", ltcp_session_write },
+		{ "read", ltcp_session_read },
+		{ "alive", ltcp_session_alive },
+		{ "close", ltcp_session_close },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, meta_session);
@@ -1266,8 +1266,8 @@ luaopen_ev_core(lua_State* L) {
 
 	luaL_newmetatable(L, META_TIMER);
 	const luaL_Reg meta_timer[] = {
-		{ "cancel", _timer_cancel },
-		{ "alive", _timer_alive },
+		{ "cancel", ltimer_cancel },
+		{ "alive", ltimer_alive },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, meta_timer);
