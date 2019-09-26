@@ -37,6 +37,10 @@ uint32_t rb_length(ring_buffer_t* rb) {
 	return rb->tail + rb->size - rb->head;
 }
 
+int rb_full(ring_buffer_t* rb) {
+	return rb_length(rb) == rb->max;
+}
+
 static int rb_realloc(ring_buffer_t* rb) {
 	if (rb->size >= rb->max) {
 		return -1;

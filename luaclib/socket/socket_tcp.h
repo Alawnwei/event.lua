@@ -35,10 +35,12 @@ void ev_session_setcb(struct ev_session* ev_session,ev_session_callback read_cb,
 void ev_session_enable(struct ev_session* ev_session,int ev);
 void ev_session_disable(struct ev_session* ev_session,int ev);
 int ev_session_fd(struct ev_session* ev_session);
+int ev_session_input_full(struct ev_session* ev_session);
 size_t ev_session_input_size(struct ev_session* ev_session);
 size_t ev_session_output_size(struct ev_session* ev_session);
 size_t ev_session_read(struct ev_session* ev_session,char* data,size_t size);
 char* ev_session_read_next(struct ev_session* ev_session,size_t* size);
+char* ev_session_read_peek(struct ev_session* ev_session, size_t size);
 int ev_session_write(struct ev_session* ev_session,char* data,size_t size);
 
 #endif

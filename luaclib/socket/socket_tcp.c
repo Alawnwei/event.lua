@@ -399,6 +399,11 @@ ev_session_input_size(ev_session_t* ev_session) {
 	return rb_length(ev_session->input);
 }
 
+int
+ev_session_input_full(ev_session_t* ev_session) {
+	return rb_full(ev_session->input);
+}
+
 size_t
 ev_session_output_size(ev_session_t* ev_session) {
 	return ev_session->output.total;
@@ -419,6 +424,11 @@ ev_session_read_next(struct ev_session* ev_session, size_t* size) {
 	char* result = rb_next(ev_session->input, &length);
 	*size = length;
 	return result;
+}
+
+char*
+ev_session_read_peek(struct ev_session* ev_session, size_t size) {
+	return rb_peek(ev_session->input, size);
 }
 
 int

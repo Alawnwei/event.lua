@@ -65,6 +65,10 @@ typedef struct ltcp_session {
 	int header;
 	int need;
 
+	char* buff;
+	int offset;
+	int size;
+
 	int threhold;
 } ltcp_session_t;
 
@@ -145,6 +149,8 @@ free_buffer(void* buffer) {
 
 //-------------------------tcp session api---------------------------
 
+
+
 static ltcp_session_t*
 tcp_session_create(lua_State* L, lev_t* lev, int header) {
 	ltcp_session_t* ltcp_session = lua_newuserdata(L, sizeof(ltcp_session_t));
@@ -156,7 +162,9 @@ tcp_session_create(lua_State* L, lev_t* lev, int header) {
 	ltcp_session->execute = 0;
 	ltcp_session->markdead = 0;
 	ltcp_session->threhold = MB;
-
+	ltcp_session->buff = NULL;
+	ltcp_session->offset = 0;
+	ltcp_session->size = 0;
 	ltcp_session->ref = meta_init(L, META_SESSION);
 
 	return ltcp_session;
@@ -188,6 +196,26 @@ tcp_session_error(struct ev_session* ev_session, void* ud) {
 	else {
 		tcp_session_release(ltcp_session);
 	}
+}
+
+static char*
+tcp_session_collect(ltcp_session_t* ltcp_session, int length, int* size) {
+	if (!ltcp_session->buff) {
+		ltcp_session->buff = (char*)malloc(length);
+		ltcp_session->size = length;
+		ltcp_session->offset = 0;
+	}
+	if (length > ltcp_session->size - ltcp_session->offset) {
+		ltcp_session->size = length + ltcp_session->offset;
+		ltcp_session->buff = (char*)realloc(ltcp_session->buff, ltcp_session->size);
+	}
+
+	ev_session_read(ltcp_session->session, ltcp_session->buff + ltcp_session->offset, length);
+	ltcp_session->offset += length;
+	if (size) {
+		*size = ltcp_session->offset;
+	}
+	return ltcp_session->buff;
 }
 
 static void
@@ -222,19 +250,32 @@ read_fd(struct ev_session* ev_session, void* ud) {
 					ltcp_session->need = header[0] | header[1] << 8 | header[2] << 16 | header[3] << 24;
 				}
 				ltcp_session->need -= ltcp_session->header;
-			}
-			else {
-				if (len < ltcp_session->need)
-					break;
-
 				if (ltcp_session->need > MAX_PACKET_SIZE) {
 					tcp_session_error(ev_session, ud);
 					break;
 				}
+			}
+			else {
+				if (len < ltcp_session->need) {
+					if (ev_session_input_full(ltcp_session->session) == 0) {
+						tcp_session_collect(ltcp_session, len, NULL);
+						ltcp_session->need -= len;
+					}
+					break;
+				}
 
-				char* data = get_buffer(ltcp_session->need);
-
-				ev_session_read(ltcp_session->session, data, ltcp_session->need);
+				char* data = NULL;
+				int size = 0;
+				if (ltcp_session->offset > 0) {
+					data = tcp_session_collect(ltcp_session, ltcp_session->need, &size);
+				} else {
+					data = ev_session_read_peek(ev_session, ltcp_session->need);
+					if (!data) {
+						data = tcp_session_collect(ltcp_session, ltcp_session->need, &size);
+					} else {
+						size = ltcp_session->need;
+					}
+				}
 
 				lua_rawgeti(lev->main, LUA_REGISTRYINDEX, lev->callback);
 				lua_pushinteger(lev->main, LUA_EV_DATA);
@@ -244,8 +285,6 @@ read_fd(struct ev_session* ev_session, void* ud) {
 				lua_pcall(lev->main, 4, 0, 0);
 
 				ltcp_session->need = 0;
-
-				free_buffer(data);
 			}
 		}
 	}
