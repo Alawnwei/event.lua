@@ -793,7 +793,7 @@ ltimer_alive(lua_State* L) {
 //-------------------------udp api---------------------------
 
 static void
-udp_recv(struct udp_session* session, char* buffer, size_t size, const char* ip, ushort port, void* userdata) {
+read_udp(struct udp_session* session, char* buffer, size_t size, const char* ip, ushort port, void* userdata) {
 	ludp_session_t* ludp_session = userdata;
 	lev_t* lev = ludp_session->lev;
 
@@ -815,7 +815,7 @@ udp_session_release(ludp_session_t* ludp_session) {
 }
 
 static int
-_udp_session_new(lua_State* L) {
+ludp_session_new(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
 	size_t recv_size = lua_tointeger(L, 2);
 	luaL_checktype(L, 3, LUA_TFUNCTION);
@@ -853,13 +853,13 @@ _udp_session_new(lua_State* L) {
 	ludp_session->callback = callback;
 	ludp_session->ref = meta_init(L, META_UDP);
 
-	udp_session_setcb(ludp_session->session, udp_recv, NULL, ludp_session);
+	udp_session_setcb(ludp_session->session, read_udp, NULL, ludp_session);
 
 	return 1;
 }
 
 static int
-_udp_session_send(lua_State* L) {
+ludp_session_send(lua_State* L) {
 	ludp_session_t* ludp_session = (ludp_session_t*)lua_touserdata(L, 1);
 	if (ludp_session->closed == 1) {
 		luaL_error(L, "udp session:%p already closed", ludp_session);
@@ -909,14 +909,14 @@ _udp_session_send(lua_State* L) {
 }
 
 static int
-_udp_session_alive(lua_State* L) {
+ludp_session_alive(lua_State* L) {
 	ludp_session_t* ludp_session = (ludp_session_t*)lua_touserdata(L, 1);
 	lua_pushinteger(L, ludp_session->closed);
 	return 1;
 }
 
 static int
-_udp_session_close(lua_State* L) {
+ludp_session_close(lua_State* L) {
 	ludp_session_t* ludp_session = (ludp_session_t*)lua_touserdata(L, 1);
 	if (ludp_session->closed == 1) {
 		luaL_error(L, "udp session:%p already closed", ludp_session);
@@ -928,8 +928,8 @@ _udp_session_close(lua_State* L) {
 
 //-------------------------pipe api---------------------------
 
-void
-pipe_recv(struct pipe_session* session, struct pipe_message* message, void *userdata) {
+static void
+read_pipe(struct pipe_session* session, struct pipe_message* message, void *userdata) {
 	lpipe_session_t* lpipe = userdata;
 	lev_t* lev = lpipe->lev;
 
@@ -945,7 +945,7 @@ pipe_recv(struct pipe_session* session, struct pipe_message* message, void *user
 }
 
 static int
-_lpipe_new(lua_State* L) {
+lpipe(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
 
 	luaL_checktype(L, 2, LUA_TFUNCTION);
@@ -966,7 +966,7 @@ _lpipe_new(lua_State* L) {
 	lpipe->callback = callback;
 	lpipe->closed = 0;
 	lpipe->ref = meta_init(L, META_PIPE);
-	pipe_session_setcb(session, pipe_recv, lpipe);
+	pipe_session_setcb(session, read_pipe, lpipe);
 
 	lua_pushinteger(L, pipe_session_write_fd(session));
 
@@ -974,14 +974,14 @@ _lpipe_new(lua_State* L) {
 }
 
 static int
-_lpipe_alive(lua_State* L) {
+lpipe_alive(lua_State* L) {
 	lpipe_session_t* lpipe = (lpipe_session_t*)lua_touserdata(L, 1);
 	lua_pushinteger(L, lpipe->closed == 1);
 	return 1;
 }
 
 static int
-_lpipe_release(lua_State* L) {
+lpipe_release(lua_State* L) {
 	lpipe_session_t* lpipe = (lpipe_session_t*)lua_touserdata(L, 1);
 	if (lpipe->closed) {
 		luaL_error(L, "pipe already closed");
@@ -996,99 +996,6 @@ _lpipe_release(lua_State* L) {
 	return 1;
 }
 //-------------------------endof pipe api---------------------------
-
-//-------------------------start http request api---------------------------
-void
-request_done(struct http_request* request, void* ud) {
-	lhttp_request_t* userdata = ud;
-	lev_t* lev = userdata->lev;
-
-	lua_rawgeti(lev->main, LUA_REGISTRYINDEX, userdata->callback);
-
-	lua_pushinteger(lev->main, get_http_code(request));
-	lua_pushstring(lev->main, get_http_error(request));
-
-	size_t headers_size;
-	const char* headers = get_http_headers(request, &headers_size);
-	lua_pushlstring(lev->main, headers, headers_size);
-
-	size_t content_size;
-	const char* content = get_http_content(request, &content_size);
-	lua_pushlstring(lev->main, content, content_size);
-
-	lua_pcall(lev->main, 4, 0, 0);
-
-	luaL_unref(lev->main, LUA_REGISTRYINDEX, userdata->ref);
-}
-
-static int
-_lrequset_set_url(lua_State* L) {
-	lhttp_request_t* httpc = (lhttp_request_t*)lua_touserdata(L, 1);
-	const char* url = lua_tostring(L, 2);
-	set_url(httpc->lrequest, url);
-	return 0;
-}
-
-static int
-_lrequset_set_header(lua_State* L) {
-	lhttp_request_t* httpc = (lhttp_request_t*)lua_touserdata(L, 1);
-	size_t size;
-	const char* header = luaL_checklstring(L, 2, &size);
-	set_header(httpc->lrequest, header, size);
-	return 0;
-}
-
-static int
-_lrequset_set_timeout(lua_State* L) {
-	lhttp_request_t* httpc = (lhttp_request_t*)lua_touserdata(L, 1);
-	int timeout = luaL_checkinteger(L, 2);
-	set_timeout(httpc->lrequest, timeout);
-	return 0;
-}
-
-static int
-_lrequset_set_post_data(lua_State* L) {
-	lhttp_request_t* httpc = (lhttp_request_t*)lua_touserdata(L, 1);
-	size_t size;
-	const char* content = luaL_checklstring(L, 2, &size);
-	set_post_data(httpc->lrequest, content, size);
-	return 0;
-}
-
-static int
-_lrequset_set_unix_socket(lua_State* L) {
-	lhttp_request_t* httpc = (lhttp_request_t*)lua_touserdata(L, 1);
-	const char* socket_path = luaL_checkstring(L, 2);
-	set_unix_socket_path(httpc->lrequest, socket_path);
-	return 0;
-}
-
-static int
-_lrequset_perform(lua_State* L) {
-	lhttp_request_t* httpc = (lhttp_request_t*)lua_touserdata(L, 1);
-	lev_t* lev = httpc->lev;
-	int status = http_request_perform(lev->multi, httpc->lrequest, request_done, httpc);
-	lua_pushinteger(L, status);
-	return 1;
-}
-
-static int
-_lhttp_request_new(lua_State* L) {
-	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
-
-	luaL_checktype(L, 2, LUA_TFUNCTION);
-	int callback = luaL_ref(L, LUA_REGISTRYINDEX);
-	lhttp_request_t* httpc = lua_newuserdata(L, sizeof(*httpc));
-	memset(httpc, 0, sizeof(*httpc));
-
-	httpc->lev = lev;
-	httpc->lrequest = http_request_new();
-	httpc->callback = callback;
-	httpc->ref = meta_init(L, META_REQUEST);
-
-	return 1;
-}
-//-------------------------endof http request api---------------------------
 
 static void
 dns_resolver_result(int ok, struct hostent *host, const char* reason, void* ud) {
@@ -1116,7 +1023,7 @@ dns_resolver_result(int ok, struct hostent *host, const char* reason, void* ud) 
 }
 
 static int
-_ldns_resolve(lua_State* L) {
+ldns_resolve(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
 	const char* host = luaL_checkstring(L, 2);
 
@@ -1139,29 +1046,15 @@ _ldns_resolve(lua_State* L) {
 }
 //-------------------------event api---------------------------
 
-extern int lgate_create(lua_State* L, struct ev_loop_ctx* loop_ctx, uint32_t max_client, uint32_t max_freq, uint32_t timeout);
-
 static int
-_lgate_new(lua_State* L) {
-	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
-	uint32_t max_client = luaL_optinteger(L, 2, 1000);
-	uint32_t max_freq = luaL_optinteger(L, 3, 1000);
-	uint32_t timeout = luaL_optinteger(L, 4, 60);
-	if (max_client <= 0 || max_client >= 10000) {
-		luaL_error(L, "error create gate,size invalid:%d", max_client);
-	}
-	return lgate_create(L, lev->loop_ctx, max_client, max_freq, timeout);
-}
-
-static int
-_dispatch(lua_State* L) {
+ldispatch(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
 	loop_ctx_dispatch(lev->loop_ctx);
 	return 0;
 }
 
 static int
-_release(lua_State* L) {
+lrelease(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
 	http_multi_delete(lev->multi);
 	dns_resolver_delete(lev->resolver);
@@ -1171,14 +1064,14 @@ _release(lua_State* L) {
 }
 
 static int
-_break(lua_State* L) {
+lbreak(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
 	loop_ctx_break(lev->loop_ctx);
 	return 0;
 }
 
 static int
-_clean(lua_State* L) {
+lclean(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
 	loop_ctx_clean(lev->loop_ctx);
 	while (lev->freelist) {
@@ -1190,7 +1083,7 @@ _clean(lua_State* L) {
 }
 
 static int
-_now(lua_State* L) {
+lnow(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
 	double now = loop_ctx_now(lev->loop_ctx) * 1000;
 	lua_pushinteger(L, now);
@@ -1199,7 +1092,7 @@ _now(lua_State* L) {
 //-------------------------endof event api---------------------------
 
 static int
-_event_new(lua_State* L) {
+levent_loop_new(lua_State* L) {
 	luaL_checktype(L, 1, LUA_TFUNCTION);
 	int callback = luaL_ref(L, LUA_REGISTRYINDEX);
 
@@ -1225,16 +1118,14 @@ luaopen_ev_core(lua_State* L) {
 		{ "connect", lconnect },
 		{ "bind", lbind },
 		{ "timer", ltimer },
-		{ "udp", _udp_session_new },
-		{ "pipe", _lpipe_new },
-		{ "gate", _lgate_new },
-		{ "http_request", _lhttp_request_new },
-		{ "dns_resolve", _ldns_resolve },
-		{ "breakout", _break },
-		{ "dispatch", _dispatch },
-		{ "clean", _clean },
-		{ "now", _now },
-		{ "release", _release },
+		{ "udp", ludp_session_new },
+		{ "pipe", lpipe },
+		{ "dns_resolve", ldns_resolve },
+		{ "breakout", lbreak },
+		{ "dispatch", ldispatch },
+		{ "clean", lclean },
+		{ "now", lnow },
+		{ "release", lrelease },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, meta_event);
@@ -1276,9 +1167,9 @@ luaopen_ev_core(lua_State* L) {
 
 	luaL_newmetatable(L, META_UDP);
 	const luaL_Reg meta_udp[] = {
-		{ "send", _udp_session_send },
-		{ "alive", _udp_session_alive },
-		{ "close", _udp_session_close },
+		{ "send", ludp_session_send },
+		{ "alive", ludp_session_alive },
+		{ "close", ludp_session_close },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, meta_udp);
@@ -1287,30 +1178,16 @@ luaopen_ev_core(lua_State* L) {
 
 	luaL_newmetatable(L, META_PIPE);
 	const luaL_Reg meta_pipe[] = {
-		{ "alive", _lpipe_alive },
-		{ "release", _lpipe_release },
+		{ "alive", lpipe_alive },
+		{ "release", lpipe_release },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, meta_pipe);
 	lua_setfield(L, -2, "__index");
 	lua_pop(L, 1);
 
-	luaL_newmetatable(L, META_REQUEST);
-	const luaL_Reg meta_request[] = {
-		{ "set_url", _lrequset_set_url },
-		{ "set_header", _lrequset_set_header },
-		{ "set_post_data", _lrequset_set_post_data },
-		{ "set_unix_socket", _lrequset_set_unix_socket },
-		{ "set_timeout", _lrequset_set_timeout },
-		{ "perfrom", _lrequset_perform },
-		{ NULL, NULL },
-	};
-	luaL_newlib(L, meta_request);
-	lua_setfield(L, -2, "__index");
-	lua_pop(L, 1);
-
 	const luaL_Reg l[] = {
-		{ "new", _event_new },
+		{ "new", levent_loop_new },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, l);
