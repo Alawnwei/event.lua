@@ -175,6 +175,9 @@ tcp_session_release(ltcp_session_t* ltcp_session) {
 	lev_t* lev = ltcp_session->lev;
 	luaL_unref(lev->main, LUA_REGISTRYINDEX, ltcp_session->ref);
 	ev_session_free(ltcp_session->session);
+	if (ltcp_session->buff) {
+		free(ltcp_session->buff);
+	}
 	return 0;
 }
 
@@ -271,11 +274,11 @@ read_fd(struct ev_session* ev_session, void* ud) {
 				}
 				else {
 					data = ev_session_read_peek(ev_session, ltcp_session->need);
-					if (!data) {
-						data = tcp_session_collect(ltcp_session, ltcp_session->need, &size);
+					if (data) {
+						size = ltcp_session->need;
 					}
 					else {
-						size = ltcp_session->need;
+						data = tcp_session_collect(ltcp_session, ltcp_session->need, &size);
 					}
 				}
 
