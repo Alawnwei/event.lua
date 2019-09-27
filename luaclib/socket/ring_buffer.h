@@ -1,5 +1,9 @@
 #ifndef RING_BUFFER_H
 #define RING_BUFFER_H
+#include <stdint.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 struct ring_buffer;
 typedef struct ring_buffer ring_buffer_t;

@@ -361,6 +361,7 @@ ev_connecter_create(struct ev_loop_ctx* loop_ctx, struct sockaddr* addr, int add
 	connector->wio.data = connector;
 	ev_io_init(&connector->wio, _ev_connect_cb, fd, EV_WRITE);
 	ev_set_priority(&connector->wio, EV_MAXPRI);
+	ev_io_start(loop_ctx->loop, &connector->wio);
 
 	return connector;
 }
@@ -491,41 +492,44 @@ ev_session_write(ev_session_t* ev_session, char* data, size_t size) {
 	if (ev_session->alive == 0)
 		return -1;
 
-	if (!ev_is_active(&ev_session->wio)) {
-		int total = socket_write(ev_session->fd, data, size);
-		if (total < 0) {
-			ev_session_disable(ev_session, EV_READ | EV_WRITE);
-			ev_session->alive = 0;
-			// if (ev_session->event_cb)
-			// 	ev_session->event_cb(ev_session,ev_session->userdata);
-			return -1;
-		}
-		else {
-			if (total == size) {
-				free(data);
-				if (ev_session->write_cb) {
-					ev_session->write_cb(ev_session, ev_session->userdata);
-				}
-			}
-			else {
-				struct data_buffer* wdb = buffer_next(ev_session->loop_ctx);
-				wdb->data = data;
-				wdb->rpos = total;
-				wdb->wpos = size;
-				wdb->size = size;
-				buffer_append(&ev_session->output, wdb);
-				ev_io_start(ev_session->loop_ctx->loop, &ev_session->wio);
-			}
-			return total;
-		}
-	}
-	else {
+	// if (!ev_is_active(&ev_session->wio)) {
+	// 	int total = socket_write(ev_session->fd, data, size);
+	// 	if (total < 0) {
+	// 		ev_session_disable(ev_session, EV_READ | EV_WRITE);
+	// 		ev_session->alive = 0;
+	// 		// if (ev_session->event_cb)
+	// 		// 	ev_session->event_cb(ev_session,ev_session->userdata);
+	// 		return -1;
+	// 	}
+	// 	else {
+	// 		if (total == size) {
+	// 			free(data);
+	// 			if (ev_session->write_cb) {
+	// 				ev_session->write_cb(ev_session, ev_session->userdata);
+	// 			}
+	// 		}
+	// 		else {
+	// 			struct data_buffer* wdb = buffer_next(ev_session->loop_ctx);
+	// 			wdb->data = data;
+	// 			wdb->rpos = total;
+	// 			wdb->wpos = size;
+	// 			wdb->size = size;
+	// 			buffer_append(&ev_session->output, wdb);
+	// 			ev_io_start(ev_session->loop_ctx->loop, &ev_session->wio);
+	// 		}
+	// 		return total;
+	// 	}
+	// }
+	// else {
 		struct data_buffer* wdb = buffer_next(ev_session->loop_ctx);
 		wdb->data = data;
 		wdb->rpos = 0;
 		wdb->wpos = size;
 		wdb->size = size;
 		buffer_append(&ev_session->output, wdb);
+		if (!ev_is_active(&ev_session->wio)) {
+			ev_io_start(ev_session->loop_ctx->loop, &ev_session->wio);
+		}
 		return 0;
-	}
+	// }
 }

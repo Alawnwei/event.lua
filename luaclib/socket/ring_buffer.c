@@ -26,7 +26,7 @@ ring_buffer_t* rb_new(uint32_t min, uint32_t max) {
 }
 
 void rb_delete(ring_buffer_t* rb) {
-	free(rb->data);
+	free(rb->buff);
 	free(rb);
 }
 
@@ -50,7 +50,7 @@ static int rb_realloc(ring_buffer_t* rb) {
 		nsize = rb->max;
 	}
 
-	char* nbuff = maloc(nsize);
+	char* nbuff = malloc(nsize);
 	uint32_t total = rb_length(rb);
 	if (total > rb->size - rb->head) {
 		uint32_t length = rb->size - rb->head;
@@ -70,7 +70,7 @@ static int rb_realloc(ring_buffer_t* rb) {
 	return 0;
 }
 
-static char* rb_reserve(ring_buffer_t* rb, uint32_t* size) {
+char* rb_reserve(ring_buffer_t* rb, uint32_t* size) {
 	if (!size) {
 		return NULL;
 	}
@@ -149,6 +149,6 @@ char* rb_next(ring_buffer_t* rb, uint32_t* size) {
 		return result;
 	}
 	*size = total;
-	rb->head += size;
+	rb->head += total;
 	return result;
 }

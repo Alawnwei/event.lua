@@ -45,7 +45,6 @@ typedef struct lev {
 	struct dns_resolver* resolver;
 	struct http_multi* multi;
 	struct lev_timer* freelist;
-
 	lua_State* main;
 	int ref;
 	int callback;
@@ -302,7 +301,7 @@ read_fd(struct ev_session* ev_session, void* ud) {
 			ltcp_session->need = 0;
 		}
 	}
-	
+
 	ltcp_session->execute = 0;
 
 	if (ltcp_session->markdead) {
@@ -359,7 +358,8 @@ connect_complete(struct ev_connecter* connecter, int fd, const char* reason, voi
 	if (fd < 0) {
 		lua_pushboolean(lev->main, 0);
 		lua_pushstring(lev->main, reason);
-	} else {
+	}
+	else {
 		socket_nonblock(fd);
 		socket_keep_alive(fd);
 		socket_closeonexec(fd);
@@ -368,6 +368,7 @@ connect_complete(struct ev_connecter* connecter, int fd, const char* reason, voi
 		tcp_session_create(lev->main, lev, fd, ltcp_connecter->header, ltcp_connecter->min, ltcp_connecter->max);
 	}
 	lua_pcall(lev->main, 4, 0, 0);
+	ev_connecter_free(connecter);
 	free(ltcp_connecter);
 }
 
@@ -381,7 +382,7 @@ get_tcp_session(lua_State* L, int index) {
 }
 
 struct sockaddr*
-make_addr(lua_State* L, int index, union un_sockaddr* sa, int* len, int listen) {
+	make_addr(lua_State* L, int index, union un_sockaddr* sa, int* len, int listen) {
 	luaL_checktype(L, index, LUA_TTABLE);
 	lua_getfield(L, index, "file");
 
@@ -422,15 +423,21 @@ make_addr(lua_State* L, int index, union un_sockaddr* sa, int* len, int listen) 
 	return addr;
 }
 
-static int
-lconnect(lua_State* L) {
-	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
+static inline int
+check_header(lua_State* L, int index) {
 	int header = luaL_checkinteger(L, 2);
 	if (header != 0) {
 		if (header != HEADER_TYPE_WORD && header != HEADER_TYPE_DWORD) {
-			luaL_error(L, "connect error:header size:%d", header);
+			luaL_error(L, "error header size:%d", header);
 		}
 	}
+	return header;
+}
+
+static int
+lconnect(lua_State* L) {
+	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
+	int header = check_header(L, 2);
 	int min = luaL_checkinteger(L, 3);
 	int max = luaL_checkinteger(L, 4);
 	int wakeup = luaL_checkinteger(L, 5);
@@ -465,7 +472,8 @@ lconnect(lua_State* L) {
 		return 2;
 	}
 
-	return 0;
+	lua_pushboolean(L, 1);
+	return 1;
 }
 
 static int
@@ -628,14 +636,7 @@ ltcp_session_close(lua_State* L) {
 static int
 llisten(lua_State* L) {
 	lev_t* lev = (lev_t*)lua_touserdata(L, 1);
-
-	int header = luaL_checkinteger(L, 2);
-	if (header != 0) {
-		if (header != HEADER_TYPE_WORD && header != HEADER_TYPE_DWORD) {
-			luaL_error(L, "create listener error:error header size:%d", header);
-		}
-	}
-
+	int header = check_header(L, 2);
 	union un_sockaddr sa;
 	int len = 0;
 	struct sockaddr* addr = make_addr(L, 6, &sa, &len, 1);
