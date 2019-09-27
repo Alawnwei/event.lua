@@ -34,13 +34,13 @@ typedef struct ev_listener {
 	void* userdata;
 } ev_listener_t;
 
-typedef struct ev_connector {
+typedef struct ev_connecter {
 	struct ev_loop_ctx* loop_ctx;
 	struct ev_io wio;
 	int fd;
 	connector_callback connect_cb;
 	void* userdata;
-} ev_connector_t;
+} ev_connecter_t;
 
 typedef struct ev_session {
 	struct ev_loop_ctx* loop_ctx;
@@ -226,7 +226,7 @@ static void
 _ev_connect_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 	ev_io_stop(loop, io);
 	
-	ev_connector_t* connector = io->data;
+	ev_connecter_t* connector = io->data;
 	int error = 0;
 	socklen_t len = sizeof(error);
 	int code = getsockopt(connector->fd, SOL_SOCKET, SO_ERROR, &error, &len);
@@ -248,8 +248,6 @@ _ev_connect_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 
 		connector->connect_cb(connector, connector->fd, NULL, connector->userdata);
 	}
-
-	free(connector);
 }
 
 ev_loop_ctx_t*
@@ -302,7 +300,7 @@ loop_ctx_clean(ev_loop_ctx_t* loop_ctx) {
 }
 
 ev_listener_t*
-ev_listener_bind(struct ev_loop_ctx* loop_ctx, struct sockaddr* addr, int addrlen, int backlog, int flag, listener_callback accept_cb, void* userdata) {
+ev_listener_create(struct ev_loop_ctx* loop_ctx, struct sockaddr* addr, int addrlen, int backlog, int flag, listener_callback accept_cb, void* userdata) {
 	int fd = socket_listen(addr, addrlen, backlog, flag);
 	if (fd < 0) {
 		return NULL;
@@ -342,6 +340,41 @@ ev_listener_free(ev_listener_t* listener) {
 	free(listener);
 }
 
+ev_connecter_t*
+ev_connecter_create(struct ev_loop_ctx* loop_ctx, struct sockaddr* addr, int addrlen, connector_callback callback, void* userdata) {
+	int result = 0;
+	int fd = socket_connect(addr, addrlen, 1, &result);
+	if (fd < 0) {
+		return NULL;
+	}
+
+	if (!callback) {
+		close(fd);
+		return NULL;
+	}
+
+	ev_connecter_t* connector = malloc(sizeof(*connector));
+	connector->loop_ctx = loop_ctx;
+	connector->fd = fd;
+	connector->connect_cb = callback;
+	connector->userdata = userdata;
+	connector->wio.data = connector;
+	ev_io_init(&connector->wio, _ev_connect_cb, fd, EV_WRITE);
+	ev_set_priority(&connector->wio, EV_MAXPRI);
+
+	return connector;
+}
+
+void
+ev_connecter_free(ev_connecter_t* connecter) {
+	if (ev_is_active(&connecter->wio)) {
+		ev_io_stop(connecter->loop_ctx->loop, &connecter->wio);
+		close(connecter->fd);
+	}
+	free(connecter);
+}
+
+
 ev_session_t*
 ev_session_bind(struct ev_loop_ctx* loop_ctx, int fd, int min, int max) {
 	ev_session_t* ev_session = malloc(sizeof(*ev_session));
@@ -361,35 +394,6 @@ ev_session_bind(struct ev_loop_ctx* loop_ctx, int fd, int min, int max) {
 	ev_session->input = rb_new(min, max);
 
 	return ev_session;
-}
-
-int
-ev_session_connect(struct ev_loop_ctx* loop_ctx, struct sockaddr* addr, int addrlen, int nonblock, connector_callback callback, void* userdata) {
-	int result = 0;
-	int fd = socket_connect(addr, addrlen, nonblock, &result);
-	if (fd < 0) {
-		return -1;
-	}
-
-	if (!nonblock) {
-		return fd;
-	}
-
-	if (!callback) {
-		close(fd);
-		return -1;
-	}
-
-	ev_connector_t* connector = malloc(sizeof(*connector));
-	connector->loop_ctx = loop_ctx;
-	connector->fd = fd;
-	connector->connect_cb = callback;
-	connector->userdata = userdata;
-	connector->wio.data = connector;
-	ev_io_init(&connector->wio, _ev_connect_cb, fd, EV_WRITE);
-	ev_set_priority(&connector->wio, EV_MAXPRI);
-
-	return fd;
 }
 
 void

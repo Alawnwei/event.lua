@@ -315,7 +315,7 @@ gate_start(gate_t* gate, const char* ip, int port) {
 	si.sin_port = htons(port);
 
 	int flag = SOCKET_OPT_NOBLOCK | SOCKET_OPT_CLOSE_ON_EXEC | SOCKET_OPT_REUSEABLE_ADDR;
-	gate->listener = ev_listener_bind(gate->loop_ctx, (struct sockaddr*)&si, sizeof(si), 16, flag, client_accept, gate);
+	gate->listener = ev_listener_create(gate->loop_ctx, (struct sockaddr*)&si, sizeof(si), 16, flag, client_accept, gate);
 	if (!gate->listener) {
 		return -1;
 	}
