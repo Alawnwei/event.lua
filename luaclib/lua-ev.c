@@ -56,7 +56,9 @@ typedef struct ltcp_session {
 	struct ev_session* session;
 	int ref;
 	int closed;
-	int wakeup;
+
+	int min;
+	int max;
 
 	int execute;
 	int markdead;
@@ -80,6 +82,14 @@ typedef struct ltcp_listener {
 	int min;
 	int max;
 } ltcp_listener_t;
+
+typedef struct ltcp_connector {
+	lev_t* lev;
+	int wakeup;
+	int header;
+	int min;
+	int max;
+} ltcp_connector_t;
 
 typedef struct ludp_session {
 	lev_t* lev;
@@ -140,9 +150,14 @@ free_buffer(void* buffer) {
 }
 
 //-------------------------tcp session api---------------------------
+static void
+tcp_session_error(struct ev_session* ev_session, void* ud);
+
+static void
+read_fd(struct ev_session* ev_session, void* ud);
 
 static ltcp_session_t*
-tcp_session_create(lua_State* L, lev_t* lev, int header) {
+tcp_session_create(lua_State* L, lev_t* lev, int fd, int header, int min, int max) {
 	ltcp_session_t* ltcp_session = lua_newuserdata(L, sizeof(ltcp_session_t));
 	memset(ltcp_session, 0, sizeof(ltcp_session_t));
 
@@ -156,6 +171,9 @@ tcp_session_create(lua_State* L, lev_t* lev, int header) {
 	ltcp_session->offset = 0;
 	ltcp_session->size = 0;
 	ltcp_session->ref = meta_init(L, META_SESSION);
+	ltcp_session->session = ev_session_bind(lev->loop_ctx, fd, min, max);
+	ev_session_setcb(ltcp_session->session, read_fd, NULL, tcp_session_error, ltcp_session);
+	ev_session_enable(ltcp_session->session, EV_READ);
 
 	return ltcp_session;
 }
@@ -301,11 +319,7 @@ accept_fd(struct ev_listener *listener, int fd, const char* addr, void *ud) {
 	socket_keep_alive(fd);
 	socket_closeonexec(fd);
 
-	ltcp_session_t* ltcp_session = tcp_session_create(lev->main, lev, lev_listener->header);
-	ltcp_session->session = ev_session_bind(lev->loop_ctx, fd, lev_listener->min, lev_listener->max);
-
-	ev_session_setcb(ltcp_session->session, read_fd, NULL, tcp_session_error, ltcp_session);
-	ev_session_enable(ltcp_session->session, EV_READ);
+	tcp_session_create(lev->main, lev, fd, lev_listener->header, lev_listener->min, lev_listener->max);
 
 	lua_rawgeti(lev->main, LUA_REGISTRYINDEX, lev->callback);
 	lua_pushinteger(lev->main, LUA_EV_ACCEPT);
@@ -331,44 +345,29 @@ close_complete(struct ev_session* ev_session, void* ud) {
 	lua_pcall(lev->main, 2, 0, 0);
 }
 
+
 static void
-connect_complete(struct ev_session* session, void *userdata) {
-	ltcp_session_t* ltcp_session = userdata;
-	lev_t* lev = ltcp_session->lev;
+connect_complete(struct ev_connector* connector, int fd, const char* reason, void *userdata) {
+	ltcp_connector_t* ltcp_connector = userdata;
+	lev_t* lev = ltcp_connector->lev;
 
 	lua_rawgeti(lev->main, LUA_REGISTRYINDEX, lev->callback);
 	lua_pushinteger(lev->main, LUA_EV_CONNECT);
-	lua_pushinteger(lev->main, ltcp_session->wakeup);
+	lua_pushinteger(lev->main, ltcp_connector->wakeup);
 
-	int fd = ev_session_fd(session);
-	int error;
-	socklen_t len = sizeof(error);
-	int code = getsockopt(fd, SOL_SOCKET, SO_ERROR, &error, &len);
-	if (code < 0 || error) {
-		char* strerr;
-		if (code >= 0) {
-			strerr = strerror(error);
-		}
-		else {
-			strerr = strerror(errno);
-		}
+	if (fd < 0) {
 		lua_pushboolean(lev->main, 0);
-		lua_pushstring(lev->main, strerr);
-		tcp_session_release(ltcp_session);
-	}
-	else {
+		lua_pushstring(lev->main, reason);
+	} else {
 		socket_nonblock(fd);
 		socket_keep_alive(fd);
 		socket_closeonexec(fd);
 
 		lua_pushboolean(lev->main, 1);
-		lua_rawgeti(lev->main, LUA_REGISTRYINDEX, ltcp_session->ref);
-
-		ev_session_setcb(ltcp_session->session, read_fd, NULL, tcp_session_error, ltcp_session);
-		ev_session_disable(ltcp_session->session, EV_WRITE);
-		ev_session_enable(ltcp_session->session, EV_READ);
+		tcp_session_create(lev->main, lev, fd, ltcp_connector->header, ltcp_connector->min, ltcp_connector->max);
 	}
 	lua_pcall(lev->main, 4, 0, 0);
+	free(ltcp_connector);
 }
 
 static inline ltcp_session_t*
@@ -439,36 +438,32 @@ lconnect(lua_State* L) {
 	int len = 0;
 	struct sockaddr* addr = make_addr(L, 6, &sa, &len, 0);
 
-	int nonblock = 0;
-	if (wakeup > 0) {
-		nonblock = 1;
+	if (wakeup <= 0) {
+		int fd = ev_session_connect(lev->loop_ctx, addr, len, 0, NULL, NULL);
+		if (fd < 0) {
+			lua_pushboolean(L, 0);
+			lua_pushstring(L, strerror(errno));
+			return 2;
+		}
+		tcp_session_create(L, lev, fd, header, min, max);
+		return 1;
 	}
 
-	int status;
-	ltcp_session_t* ltcp_session = tcp_session_create(L, lev, header);
-	ltcp_session->lev = lev;
-	ltcp_session->wakeup = wakeup;
-
-	int fd = ev_session_connect(lev->loop_ctx, addr, len, nonblock, &status);
+	ltcp_connector_t* connector = malloc(sizeof(*connector));
+	connector->lev = lev;
+	connector->wakeup = wakeup;
+	connector->header = header;
+	connector->min = min;
+	connector->max = max;
+	int fd = ev_session_connect(lev->loop_ctx, addr, len, 1, connect_complete, connector);
 	if (fd < 0) {
 		lua_pushboolean(L, 0);
 		lua_pushstring(L, strerror(errno));
+		free(connector);
 		return 2;
 	}
 
-	ltcp_session->session = ev_session_bind(lev->loop_ctx, fd, min, max);
-
-	if (nonblock) {
-		ev_session_setcb(ltcp_session->session, NULL, connect_complete, NULL, ltcp_session);
-		ev_session_enable(ltcp_session->session, EV_WRITE);
-		lua_pushboolean(L, 1);
-	}
-	else {
-		ev_session_setcb(ltcp_session->session, read_fd, NULL, tcp_session_error, ltcp_session);
-		ev_session_enable(ltcp_session->session, EV_READ);
-	}
-
-	return 1;
+	return 0;
 }
 
 static int
@@ -478,10 +473,7 @@ lbind(lua_State* L) {
 	int min = luaL_checkinteger(L, 3);
 	int max = luaL_checkinteger(L, 4);
 
-	ltcp_session_t* ltcp_session = tcp_session_create(L, lev, 0);
-	ltcp_session->session = ev_session_bind(lev->loop_ctx, fd, min, max);
-	ev_session_setcb(ltcp_session->session, read_fd, NULL, tcp_session_error, ltcp_session);
-	ev_session_enable(ltcp_session->session, EV_READ);
+	tcp_session_create(L, lev, fd, 0, min, max);
 	return 1;
 }
 
