@@ -190,8 +190,7 @@ client_read(struct ev_session* ev_session, void* ud) {
 			if (read_header(client) < 0) {
 				break;
 			}
-		}
-		else {
+		} else {
 			if (read_body(client) < 0) {
 				break;
 			}
@@ -214,8 +213,7 @@ client_update(struct ev_loop* loop, struct ev_timer* io, int revents) {
 	if (client->freq > client->gate->max_freq) {
 		snprintf(client->gate->error, ERROR_SIZE, "client receive message too much:%d in last 1s", client->freq);
 		client_exit(client, client->gate->error);
-	}
-	else {
+	} else {
 		client->freq = 0;
 		if (client->tick != 0 && loop_ctx_now(client->gate->loop_ctx) - client->tick > client->gate->timeout) {
 			client_exit(client, "client timeout");
@@ -357,8 +355,7 @@ gate_close(gate_t* gate, uint32_t client_id, int grace) {
 
 	if (!grace) {
 		release_client(client);
-	}
-	else {
+	} else {
 		client->markdead = 1;
 		ev_session_setcb(client->session, NULL, close_complete, close_error, client);
 		ev_session_enable(client->session, EV_WRITE);

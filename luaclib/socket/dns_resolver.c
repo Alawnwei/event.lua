@@ -101,8 +101,7 @@ dns_sock_state_cb(void* ud, ares_socket_t sock, int readable, int writable) {
 		if (writable) {
 			ev_io_start(loop_ctx_get(resolver->ev_loop), &task->wio);
 		}
-	}
-	else {
+	} else {
 		task_hash_del(resolver->hash, sock);
 
 		if (ev_is_active(&task->rio)) {
@@ -160,8 +159,7 @@ query_callback(void* ud, int status, int timeouts, struct hostent *host) {
 	query_param_t* param = ud;
 	if (status != ARES_SUCCESS) {
 		param->cb(0, NULL, ares_strerror(status), param->ud);
-	}
-	else {
+	} else {
 		param->cb(1, host, NULL, param->ud);
 	}
 	free(param);

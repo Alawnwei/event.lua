@@ -15,7 +15,7 @@ struct ev_session;
 
 typedef void(*listener_callback)(struct ev_listener*, int fd, const char* addr, void *userdata);
 typedef void(*connector_callback)(struct ev_connecter*, int fd, const char* reason, void *userdata);
-typedef void(*ev_session_callback)(struct ev_session*, void *userdata);
+typedef void(*session_callback)(struct ev_session*, void *userdata);
 
 struct ev_loop_ctx* loop_ctx_create();
 void loop_ctx_release(struct ev_loop_ctx* loop_ctx);
@@ -35,7 +35,7 @@ void ev_connecter_free(struct ev_connecter* connecter);
 
 struct ev_session* ev_session_bind(struct ev_loop_ctx* loop_ctx, int fd, int min, int max);
 void ev_session_free(struct ev_session* ev_session);
-void ev_session_setcb(struct ev_session* ev_session, ev_session_callback read_cb, ev_session_callback write_cb, ev_session_callback event_cb, void* userdata);
+void ev_session_setcb(struct ev_session* ev_session, session_callback read_cb, session_callback write_cb, session_callback event_cb, void* userdata);
 void ev_session_enable(struct ev_session* ev_session, int ev);
 void ev_session_disable(struct ev_session* ev_session, int ev);
 int ev_session_fd(struct ev_session* ev_session);

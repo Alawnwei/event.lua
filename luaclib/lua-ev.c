@@ -59,7 +59,7 @@ typedef struct ltcp_session {
 	int min;
 	int max;
 
-	int execute;
+	int loop;
 	int markdead;
 
 	int header;
@@ -164,7 +164,7 @@ tcp_session_create(lua_State* L, lev_t* lev, int fd, int header, int min, int ma
 	ltcp_session->lev = lev;
 	ltcp_session->closed = 0;
 	ltcp_session->header = header;
-	ltcp_session->execute = 0;
+	ltcp_session->loop = 0;
 	ltcp_session->markdead = 0;
 	ltcp_session->threhold = MB;
 	ltcp_session->buff = NULL;
@@ -201,7 +201,7 @@ tcp_session_error(struct ev_session* ev_session, void* ud) {
 
 	ltcp_session->closed = 1;
 
-	if (ltcp_session->execute) {
+	if (ltcp_session->loop) {
 		ltcp_session->markdead = 1;
 	}
 	else {
@@ -232,7 +232,7 @@ tcp_session_collect(ltcp_session_t* ltcp_session, int length, int* size) {
 static void
 read_fd(struct ev_session* ev_session, void* ud) {
 	ltcp_session_t* ltcp_session = ud;
-	ltcp_session->execute = 1;
+	ltcp_session->loop = 1;
 
 	lev_t* lev = ltcp_session->lev;
 
@@ -302,7 +302,7 @@ read_fd(struct ev_session* ev_session, void* ud) {
 		}
 	}
 
-	ltcp_session->execute = 0;
+	ltcp_session->loop = 0;
 
 	if (ltcp_session->markdead) {
 		tcp_session_release(ltcp_session);
@@ -619,7 +619,7 @@ ltcp_session_close(lua_State* L) {
 		ev_session_enable(ltcp_session->session, EV_WRITE);
 	}
 	else {
-		if (ltcp_session->execute) {
+		if (ltcp_session->loop) {
 			ltcp_session->markdead = 1;
 		}
 		else {

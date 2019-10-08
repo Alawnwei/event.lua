@@ -65,8 +65,7 @@ socket_bind(struct sockaddr *addr, int addrlen, int flag, int protocol) {
 
 	if (protocol == IPPROTO_TCP) {
 		fd = socket(addr->sa_family, SOCK_STREAM, 0);
-	}
-	else {
+	} else {
 		assert(protocol == IPPROTO_UDP);
 		fd = socket(addr->sa_family, SOCK_DGRAM, 0);
 	}
@@ -144,8 +143,7 @@ socket_connect(struct sockaddr* addr, int addrlen, int nonblock, int* connected)
 			return fd;
 		}
 		*connected = 0;
-	}
-	else {
+	} else {
 		status = connect(fd, addr, addrlen);
 		if (status != 0) {
 			close(fd);
@@ -168,22 +166,17 @@ socket_read(int fd, char* data, size_t len) {
 			if (errno) {
 				if (errno == EINTR) {
 					continue;
-				}
-				else if (errno == EAGAIN) {
+				} else if (errno == EAGAIN) {
 					break;
-				}
-				else {
+				} else {
 					return -1;
 				}
-			}
-			else {
+			} else {
 				assert(0);
 			}
-		}
-		else if (n == 0) {
+		} else if (n == 0) {
 			return -1;
-		}
-		else {
+		} else {
 			offset += n;
 			left -= n;
 		}
@@ -196,22 +189,19 @@ socket_write(int fd, char* data, size_t size) {
 	int total = 0;
 	for (;;) {
 		int sz = (int)write(fd, data, size);
-		if (sz < 0)  {
-			switch (errno)
-			{
-			case EINTR:
-				continue;
-			case EAGAIN:
-				return total;
-			default:
-				fprintf(stderr, "send fd :%d error:%s\n", fd, strerror(errno));
-				return -1;
+		if (sz < 0) {
+			switch (errno) {
+				case EINTR:
+					continue;
+				case EAGAIN:
+					return total;
+				default:
+					fprintf(stderr, "send fd :%d error:%s\n", fd, strerror(errno));
+					return -1;
 			}
-		}
-		else if (sz == 0) {
+		} else if (sz == 0) {
 			return -1;
-		}
-		else {
+		} else {
 			size -= sz;
 			data += sz;
 			total += sz;
@@ -229,21 +219,18 @@ socket_udp_write(int fd, char* data, size_t size, struct sockaddr* addr, size_t 
 	for (;;) {
 		int sz = sendto(fd, data, size, 0, (struct sockaddr *)addr, addrlen);
 		if (sz < 0) {
-			switch (errno)
-			{
-			case EINTR:
-				continue;
-			case EAGAIN:
-				return total;
-			default:
-				fprintf(stderr, "sendto fd :%d error:%s\n", fd, strerror(errno));
-				return -1;
+			switch (errno) {
+				case EINTR:
+					continue;
+				case EAGAIN:
+					return total;
+				default:
+					fprintf(stderr, "sendto fd :%d error:%s\n", fd, strerror(errno));
+					return -1;
 			}
-		}
-		else if (sz == 0) {
+		} else if (sz == 0) {
 			return -1;
-		}
-		else {
+		} else {
 			size -= sz;
 			data += sz;
 			total += sz;
@@ -274,8 +261,7 @@ socket_accept(int listen_fd, char* info, size_t length) {
 		if (inet_ntop(u.s.sa_family, sin_addr, tmp, sizeof(tmp))) {
 			snprintf(info, length, "%s:%d", tmp, sin_port);
 		}
-	}
-	else {
+	} else {
 		snprintf(info, length, "ipc:unknown");
 	}
 
@@ -289,11 +275,9 @@ socket_pipe_write(int fd, void* data, size_t size) {
 		if (n < 0) {
 			if (errno == EINTR) {
 				continue;
-			}
-			else if (errno == EAGAIN) {
+			} else if (errno == EAGAIN) {
 				return -1;
-			}
-			else {
+			} else {
 				fprintf(stderr, "pipe_session_write_fd error %s.\n", strerror(errno));
 				assert(0);
 			}
@@ -336,8 +320,7 @@ get_sockname(int fd, char* out, size_t out_len, int* port) {
 
 		if (inet_ntop(u.s.sa_family, sin_addr, out, out_len))
 			return 0;
-	}
-	else if (u.s.sa_family == AF_UNIX) {
+	} else if (u.s.sa_family == AF_UNIX) {
 		snprintf(out, out_len, "%s", u.un.sun_path);
 		*port = 0;
 		return 0;

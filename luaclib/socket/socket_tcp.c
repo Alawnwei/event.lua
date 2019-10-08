@@ -53,9 +53,9 @@ typedef struct ev_session {
 	ring_buffer_t* input;
 	ev_buffer_t output;
 
-	ev_session_callback read_cb;
-	ev_session_callback write_cb;
-	ev_session_callback event_cb;
+	session_callback read_cb;
+	session_callback write_cb;
+	session_callback event_cb;
 
 	void* userdata;
 } ev_session_t;
@@ -69,8 +69,7 @@ buffer_next(ev_loop_ctx_t* loop_ctx) {
 	if (loop_ctx->freelist != NULL) {
 		db = loop_ctx->freelist;
 		loop_ctx->freelist = db->next;
-	}
-	else {
+	} else {
 		db = malloc(sizeof(*db));
 	}
 	db->data = NULL;
@@ -94,8 +93,7 @@ buffer_append(ev_buffer_t* ev_buffer, data_buffer_t* db) {
 	if (ev_buffer->head == NULL) {
 		assert(ev_buffer->tail == NULL);
 		ev_buffer->head = ev_buffer->tail = db;
-	}
-	else {
+	} else {
 		ev_buffer->tail->next = db;
 		db->prev = ev_buffer->tail;
 		db->next = NULL;
@@ -131,7 +129,6 @@ _ev_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 	ev_session_t* ev_session = io->data;
 
 	int fail = 0;
-	//一次性接完数据，再回调(为了预防恶意流，理论上应该接一次回调一次，在上层判断数据合法性)
 	for (;;) {
 		uint32_t space;
 		char* data = rb_reserve(ev_session->input, &space);
@@ -143,24 +140,20 @@ _ev_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 			if (errno) {
 				if (errno == EINTR) {
 					continue;
-				}
-				else if (errno == EAGAIN) {
+				} else if (errno == EAGAIN) {
 					break;
-				}
-				else {
+				} else {
 					fail = 1;
 					break;
 				}
+			} else {
+				fail = 1;
+				break;
 			}
-			else {
-				assert(0);
-			}
-		}
-		else if (n == 0) {
+		} else if (n == 0) {
 			fail = 1;
 			break;
-		}
-		else {
+		} else {
 			rb_commit(ev_session->input, n);
 			if (n < space) {
 				break;
@@ -174,8 +167,7 @@ _ev_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 		if (ev_session->event_cb) {
 			ev_session->event_cb(ev_session, ev_session->userdata);
 		}
-	}
-	else {
+	} else {
 		if (ev_session->read_cb) {
 			ev_session->read_cb(ev_session, ev_session->userdata);
 		}
@@ -193,11 +185,11 @@ _ev_write_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 		if (total < 0) {
 			ev_session_disable(ev_session, EV_READ | EV_WRITE);
 			ev_session->alive = 0;
-			if (ev_session->event_cb)
+			if (ev_session->event_cb) {
 				ev_session->event_cb(ev_session, ev_session->userdata);
+			}
 			return;
-		}
-		else {
+		} else {
 			ev_session->output.total -= total;
 			if (total == left) {
 				free(wdb->data);
@@ -207,8 +199,7 @@ _ev_write_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 					ev_session->output.head = ev_session->output.tail = NULL;
 					break;
 				}
-			}
-			else {
+			} else {
 				wdb->rpos += total;
 				return;
 			}
@@ -225,7 +216,7 @@ _ev_write_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 static void
 _ev_connect_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 	ev_io_stop(loop, io);
-	
+
 	ev_connecter_t* connector = io->data;
 	int error = 0;
 	socklen_t len = sizeof(error);
@@ -234,14 +225,12 @@ _ev_connect_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 		char* strerr = NULL;
 		if (code >= 0) {
 			strerr = strerror(error);
-		}
-		else {
+		} else {
 			strerr = strerror(errno);
 		}
 		close(connector->fd);
 		connector->connect_cb(connector, -1, strerr, connector->userdata);
-	}
-	else {
+	} else {
 		socket_nonblock(connector->fd);
 		socket_keep_alive(connector->fd);
 		socket_closeonexec(connector->fd);
@@ -271,7 +260,7 @@ loop_ctx_release(ev_loop_ctx_t* loop_ctx) {
 }
 
 struct ev_loop*
-	loop_ctx_get(ev_loop_ctx_t* loop_ctx) {
+loop_ctx_get(ev_loop_ctx_t* loop_ctx) {
 	return loop_ctx->loop;
 }
 
@@ -410,7 +399,7 @@ ev_session_free(ev_session_t* ev_session) {
 }
 
 void
-ev_session_setcb(ev_session_t* ev_session, ev_session_callback read_cb, ev_session_callback write_cb, ev_session_callback event_cb, void* userdata) {
+ev_session_setcb(ev_session_t* ev_session, session_callback read_cb, session_callback write_cb, session_callback event_cb, void* userdata) {
 	ev_session->read_cb = read_cb;
 	ev_session->write_cb = write_cb;
 	ev_session->event_cb = event_cb;
@@ -489,47 +478,18 @@ ev_session_read_peek(struct ev_session* ev_session, size_t size) {
 
 int
 ev_session_write(ev_session_t* ev_session, char* data, size_t size) {
-	if (ev_session->alive == 0)
+	if (ev_session->alive == 0) {
 		return -1;
+	}
 
-	// if (!ev_is_active(&ev_session->wio)) {
-	// 	int total = socket_write(ev_session->fd, data, size);
-	// 	if (total < 0) {
-	// 		ev_session_disable(ev_session, EV_READ | EV_WRITE);
-	// 		ev_session->alive = 0;
-	// 		// if (ev_session->event_cb)
-	// 		// 	ev_session->event_cb(ev_session,ev_session->userdata);
-	// 		return -1;
-	// 	}
-	// 	else {
-	// 		if (total == size) {
-	// 			free(data);
-	// 			if (ev_session->write_cb) {
-	// 				ev_session->write_cb(ev_session, ev_session->userdata);
-	// 			}
-	// 		}
-	// 		else {
-	// 			struct data_buffer* wdb = buffer_next(ev_session->loop_ctx);
-	// 			wdb->data = data;
-	// 			wdb->rpos = total;
-	// 			wdb->wpos = size;
-	// 			wdb->size = size;
-	// 			buffer_append(&ev_session->output, wdb);
-	// 			ev_io_start(ev_session->loop_ctx->loop, &ev_session->wio);
-	// 		}
-	// 		return total;
-	// 	}
-	// }
-	// else {
-		struct data_buffer* wdb = buffer_next(ev_session->loop_ctx);
-		wdb->data = data;
-		wdb->rpos = 0;
-		wdb->wpos = size;
-		wdb->size = size;
-		buffer_append(&ev_session->output, wdb);
-		if (!ev_is_active(&ev_session->wio)) {
-			ev_io_start(ev_session->loop_ctx->loop, &ev_session->wio);
-		}
-		return 0;
-	// }
+	struct data_buffer* wdb = buffer_next(ev_session->loop_ctx);
+	wdb->data = data;
+	wdb->rpos = 0;
+	wdb->wpos = size;
+	wdb->size = size;
+	buffer_append(&ev_session->output, wdb);
+	if (!ev_is_active(&ev_session->wio)) {
+		ev_io_start(ev_session->loop_ctx->loop, &ev_session->wio);
+	}
+	return 0;
 }

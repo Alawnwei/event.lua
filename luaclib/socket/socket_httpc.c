@@ -91,8 +91,7 @@ multi_sock_cb(CURL* e, curl_socket_t s, int what, void* cbp, void* ud) {
 		if (ev_is_active(&request->wio)) {
 			ev_io_stop(loop_ctx_get(multi->ev_loop), &request->wio);
 		}
-	}
-	else {
+	} else {
 		if (!request) {
 			curl_easy_getinfo(e, CURLINFO_PRIVATE, &request);
 			request->fd = s;
@@ -110,13 +109,11 @@ multi_sock_cb(CURL* e, curl_socket_t s, int what, void* cbp, void* ud) {
 			if (!ev_is_active(&request->rio)) {
 				ev_io_start(loop_ctx_get(multi->ev_loop), &request->rio);
 			}
-		}
-		else if (what == CURL_POLL_OUT){
+		} else if (what == CURL_POLL_OUT) {
 			if (!ev_is_active(&request->wio)) {
 				ev_io_start(loop_ctx_get(multi->ev_loop), &request->wio);
 			}
-		}
-		else if (what == CURL_POLL_INOUT){
+		} else if (what == CURL_POLL_INOUT) {
 			if (!ev_is_active(&request->rio)) {
 				ev_io_start(loop_ctx_get(multi->ev_loop), &request->rio);
 			}
@@ -134,8 +131,7 @@ multi_timer_cb(CURLM* ctx, long timeout_ms, void* ud) {
 
 	if (timeout_ms == 0) {
 		curl_multi_socket_action(multi->ctx, CURL_SOCKET_TIMEOUT, 0, &multi->still_running);
-	}
-	else if (timeout_ms > 0) {
+	} else if (timeout_ms > 0) {
 		multi->io.data = multi;
 
 		if (ev_is_active(&multi->io)) {
@@ -293,8 +289,7 @@ set_post_data(http_request_t* request, const char* data, size_t size) {
 
 	if (size == 0) {
 		status = curl_easy_setopt(request->ctx, CURLOPT_POSTFIELDS, "");
-	}
-	else {
+	} else {
 		request->content = malloc(size);
 		memcpy(request->content, data, size);
 		status = curl_easy_setopt(request->ctx, CURLOPT_POSTFIELDS, request->content);
@@ -316,8 +311,7 @@ int
 set_header(http_request_t* request, const char* data, size_t size) {
 	if (request->headers) {
 		curl_slist_append(request->headers, data);
-	}
-	else {
+	} else {
 		request->headers = curl_slist_append(NULL, data);
 	}
 

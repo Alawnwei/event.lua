@@ -56,8 +56,7 @@ static int rb_realloc(ring_buffer_t* rb) {
 		uint32_t length = rb->size - rb->head;
 		memcpy(nbuff, rb->buff + rb->head, length);
 		memcpy(nbuff + length, rb->buff, total - length);
-	}
-	else {
+	} else {
 		if (total > 0) {
 			memcpy(nbuff, rb->buff + rb->head, total);
 		}
@@ -105,8 +104,7 @@ char* rb_copy(ring_buffer_t* rb, char* buff, uint32_t size) {
 		memcpy(buff, rb->buff + rb->head, len);
 		memcpy(buff + len, rb->buff, size - len);
 		rb->head = size - rb->size + rb->head;
-	}
-	else {
+	} else {
 		memcpy(buff, rb->buff + rb->head, size);
 		rb->head += size;
 		if (rb->head >= rb->size) {
@@ -124,8 +122,7 @@ char* rb_peek(ring_buffer_t* rb, uint32_t size) {
 	char* result = NULL;
 	if (size > rb->size - rb->head) {
 		return NULL;
-	}
-	else {
+	} else {
 		result = rb->buff + rb->head;
 		rb->head += size;
 		if (rb->head >= rb->size) {

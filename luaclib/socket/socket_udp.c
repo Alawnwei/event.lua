@@ -27,13 +27,13 @@ _udp_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 		int n = recvfrom(session->fd, session->recv_buffer, session->recv_size, 0, (struct sockaddr*)&si, &slen);
 		if (n < 0) {
 			switch (errno) {
-			case EINTR:
-				continue;
-			case EAGAIN:
-				return;
-			default: {
-				break;
-			}
+				case EINTR:
+					continue;
+				case EAGAIN:
+					return;
+				default: {
+					break;
+				}
 			}
 			if (session->event_cb) {
 				session->event_cb(session, session->userdata);

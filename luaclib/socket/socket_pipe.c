@@ -24,8 +24,7 @@ _pipe_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 				continue;
 			else if (errno == EAGAIN) {
 				return;
-			}
-			else {
+			} else {
 				assert(0);
 			}
 		}
