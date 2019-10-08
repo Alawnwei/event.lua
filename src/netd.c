@@ -93,7 +93,7 @@ netd_create(struct ev_loop_ctx* loop_ctx, netd_create_opts* opts) {
 
 	netd->max_freq = opts->max_client;
 	if (netd->max_freq < 1) {
-		netd->max_freq = 1000;
+		netd->max_freq = 100;
 	}
 
 	netd->timeout = opts->timeout;
