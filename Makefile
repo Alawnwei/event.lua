@@ -43,6 +43,7 @@ DOUBLE_CONVERSION_OBJ = $(patsubst %.cc,%.o,$(DOUBLE_CONVERSION_SRC))
 
 MAIN_PATH ?= ./src
 MAIN_SRC ?= $(wildcard $(MAIN_PATH)/*.c)
+MAIN_SRC +=  ./luaclib/socket/socket_tcp.c ./luaclib/socket/socket_util.c ./luaclib/socket/ring_buffer.c ./luaclib/common/encrypt.c ./luaclib/common/object_container.c
 MAIN_OBJ = $(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(MAIN_SRC)))
 
 TARGET ?= event
@@ -93,11 +94,11 @@ $(CONVERT_PATH)/milo/%.o:$(CONVERT_PATH)/milo/%.cpp
 $(CONVERT_PATH)/double-conversion/%.o:$(CONVERT_PATH)/double-conversion/%.cc
 	$(CC) $(CFLAGS) -fPIC -o $@ -c $< -I$(CONVERT_PATH)
 
-$(MAIN_PATH)/%.o:$(MAIN_PATH)/%.c
-	$(CC) $(CFLAGS) -o $@ -c $< -I$(LUA_INC) -I$(TC_INC) 
+%.o:%.c
+	$(CC) $(CFLAGS) -o $@ -c $< -I$(LUA_INC) -I$(TC_INC) -I$(LIBEV_INC) -Iluaclib
 
-$(MAIN_PATH)/%.o:$(MAIN_PATH)/%.cc
-	$(CC) $(CFLAGS) -o $@ -c $< -I$(LUA_INC) -I$(TC_INC) 
+%.o:%.cc
+	$(CC) $(CFLAGS) -o $@ -c $< -I$(LUA_INC) -I$(TC_INC) -I$(LIBEV_INC) -Iluaclib
 
 debug :
 	$(MAKE) $(ALL) CFLAGS="-g -Wall -Wno-unused-value -fno-omit-frame-pointer" TC_STATIC_LIB="3rd/gperftools/.libs/libtcmalloc_debug.a" LDFLAGS="-lrt -lm -ldl -lprofiler -lpthread -lssl -lstdc++"
@@ -111,10 +112,10 @@ libc :
 efence :
 	$(MAKE) $(ALL) DEFINE="" STATIC_LIBS="$(LUA_STATIC_LIB) $(LIBEVENT_STATIC_LIB) $(EFENCE_STATIC_LIB)" LDFLAGS="-lrt -lm -ldl -lpthread -lssl -lstdc++"
 
-$(TARGET) : $(MAIN_OBJ) $(STATIC_LIBS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -Wl,-E
+$(TARGET) : $(MAIN_OBJ) $(STATIC_LIBS) $(LIBEV_SHARE_LIB)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -I./$(LIBEV_INC) -Wl,-E
 
-$(LUA_CLIB_PATH)/ev.so : $(LUA_CLIB_SRC)/lua-ev.c $(LUA_CLIB_SRC)/lua-gate.c $(LUA_CLIB_SRC)/common/common.c $(LUA_CLIB_SRC)/socket/gate.c $(LUA_CLIB_SRC)/common/encrypt.c $(LUA_CLIB_SRC)/socket/socket_tcp.c $(LUA_CLIB_SRC)/socket/socket_udp.c $(LUA_CLIB_SRC)/socket/socket_pipe.c $(LUA_CLIB_SRC)/socket/socket_util.c $(LUA_CLIB_SRC)/socket/socket_httpc.c $(LUA_CLIB_SRC)/socket/dns_resolver.c $(LUA_CLIB_SRC)/common/object_container.c $(LUA_CLIB_SRC)/common/string.c $(LIBEV_SHARE_LIB) $(LIBCURL_SHARE_LIB) $(LIBARES_SHARE_LIB) | $(LUA_CLIB_PATH)
+$(LUA_CLIB_PATH)/ev.so : $(LUA_CLIB_SRC)/lua-ev.c $(LUA_CLIB_SRC)/lua-gate.c $(LUA_CLIB_SRC)/common/common.c $(LUA_CLIB_SRC)/socket/gate.c $(LUA_CLIB_SRC)/common/encrypt.c $(LUA_CLIB_SRC)/socket/socket_tcp.c $(LUA_CLIB_SRC)/socket/socket_udp.c $(LUA_CLIB_SRC)/socket/socket_pipe.c $(LUA_CLIB_SRC)/socket/socket_util.c $(LUA_CLIB_SRC)/socket/socket_httpc.c $(LUA_CLIB_SRC)/socket/dns_resolver.c $(LUA_CLIB_SRC)/common/object_container.c $(LUA_CLIB_SRC)/common/string.c $(LUA_CLIB_SRC)/socket/ring_buffer.c $(LIBEV_SHARE_LIB) $(LIBCURL_SHARE_LIB) $(LIBARES_SHARE_LIB) | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) -Wno-strict-aliasing $(SHARED) $^ -o $@ -I$(LUA_INC) -I$(LIBEV_INC) -I$(LUA_CLIB_SRC) -I$(LIBCURL_INC) -I$(LIBARES_INC) -I./3rd/klib
 
 $(LUA_CLIB_PATH)/worker.so : $(LUA_CLIB_SRC)/lua-worker.c $(LUA_CLIB_SRC)/common/message_queue.c $(LUA_CLIB_SRC)/common/lock.c $(LUA_CLIB_SRC)/socket/socket_util.c | $(LUA_CLIB_PATH)
@@ -139,7 +140,7 @@ $(LUA_CLIB_PATH)/mongo.so : $(LUA_CLIB_SRC)/lua-mongo.c | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) $(SHARED) $^ -o $@ -I$(LUA_INC)
 
 $(LUA_CLIB_PATH)/util.so : $(LUA_CLIB_SRC)/lua-util.c ./3rd/klib/kstring.c $(LUA_CLIB_SRC)/profiler/size_of.c $(LUA_CLIB_SRC)/profiler/profiler.c $(LUA_CLIB_SRC)/profiler/hash_frame.c $(LUA_CLIB_SRC)/profiler/stack_hot.c $(LUA_CLIB_SRC)/common/common.c $(LUA_CLIB_SRC)/common/timeutil.c $(LUA_CLIB_SRC)/common/encrypt.c $(CONVERT_OBJ) $(DOUBLE_CONVERSION_OBJ) ./3rd/linenoise/linenoise.c | $(LUA_CLIB_PATH)
-	$(CC) $(CFLAGS) -Wno-unused-value $(SHARED) $^ -o $@ -I$(LUA_INC) -I$(CONVERT_PATH) -I$(CONVERT_PATH)/ -I./3rd/linenoise -I./3rd/klib -I./3rd/lz4/lib -L./3rd/lz4/lib -llz4  -liconv
+	$(CC) $(CFLAGS) -Wno-unused-value $(SHARED) $^ -o $@ -I$(LUA_INC) -I$(CONVERT_PATH) -I$(CONVERT_PATH)/ -I./3rd/linenoise -I./3rd/klib -I./3rd/lz4/lib -L./3rd/lz4/lib -llz4 -liconv
 
 $(LUA_CLIB_PATH)/lfs.so : ./3rd/luafilesystem/src/lfs.c | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) $(SHARED) $^ -o $@ -I$(LUA_INC)
@@ -192,7 +193,7 @@ $(LUA_CLIB_PATH)/snapshot.so : $(LUA_CLIB_SRC)/lua-snapshot.c | $(LUA_CLIB_PATH)
 clean :
 	rm -rf $(TARGET) $(TARGET).raw
 	rm -rf $(LUA_CLIB_PATH)
-	rm -rf src/*.o
+	rm -rf $(MAIN_OBJ)
 	rm -rf luaclib/convert/milo/*.o
 	rm -rf luaclib/convert/double-conversion/*.o
 

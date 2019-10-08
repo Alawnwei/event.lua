@@ -30,7 +30,11 @@ typedef struct netd {
 
 	char error[ERROR_SIZE];
 
-	void* ud;
+	void* userdata;
+
+	client_enter_cb enter_cb;
+	client_leave_cb leave_cb;
+	client_message_cb message_cb;
 
 	struct client* deadclient;
 } netd_t;
@@ -78,31 +82,38 @@ free_buffer(uint8_t* buffer) {
 }
 
 netd_t*
-netd_create(struct ev_loop_ctx* loop_ctx, uint32_t max_client, uint32_t max_freq, uint32_t timeout) {
-	if (max_client < 1) {
-		max_client = 1000;
-	}
-
-	if (max_freq < 1) {
-		max_freq = 100;
-	}
-
-	if (timeout < 1) {
-		timeout = 60;
-	}
-
+netd_create(struct ev_loop_ctx* loop_ctx, netd_create_opts* opts) {
 	netd_t* netd = malloc(sizeof(*netd));
 	memset(netd, 0, sizeof(*netd));
 
-	netd->container = container_create(max_client);
-	netd->loop_ctx = loop_ctx;
-	netd->max_freq = max_freq;
-	netd->timeout = timeout;
+	netd->max_client = opts->max_client;
+	if (netd->max_client < 1) {
+		netd->max_client = 1000;
+	}
 
+	netd->max_freq = opts->max_client;
+	if (netd->max_freq < 1) {
+		netd->max_freq = 1000;
+	}
+
+	netd->timeout = opts->timeout;
+	if (netd->timeout < 1) {
+		netd->timeout = 60;
+	}
+
+	netd->userdata = opts->userdata;
+
+	netd->enter_cb = opts->enter_cb;
+	netd->leave_cb = opts->leave_cb;
+	netd->message_cb = opts->message_cb;
+
+	netd->container = container_create(netd->max_client);
+	netd->loop_ctx = loop_ctx;
 	netd->count = 0;
-	netd->max_client = max_client;
 
 	netd->max_offset = 1;
+
+	uint32_t max_client = netd->max_client;
 	while (max_client > 0) {
 		max_client /= 10;
 		netd->max_offset *= 10;
@@ -110,6 +121,7 @@ netd_create(struct ev_loop_ctx* loop_ctx, uint32_t max_client, uint32_t max_freq
 
 	netd->index = 1;
 	netd->max_index = 0xffffffff / netd->max_offset;
+
 	return netd;
 }
 
@@ -248,6 +260,8 @@ netd_client_accept(struct ev_listener *listener, int fd, const char* addr, void 
 	client->timer.data = client;
 	ev_timer_init(&client->timer, netd_client_update, 1, 1);
 	ev_timer_start(loop_ctx_get(netd->loop_ctx), &client->timer);
+
+	netd->enter_cb(netd->userdata, client->id, addr);
 }
 
 static void
@@ -298,6 +312,8 @@ netd_client_read(struct ev_session* ev_session, void* ud) {
 			client->freq++;
 			client->tick = loop_ctx_now(client->netd->loop_ctx);
 
+			client->netd->message_cb(client->netd->userdata, client->id, &data[4], client->need - 4);
+
 			client->need = 0;
 
 			free_buffer(data);
@@ -311,6 +327,8 @@ netd_client_exit(client_t* client, const char* reason) {
 	netd_t* netd = client->netd;
 	client->next = netd->deadclient;
 	netd->deadclient = client;
+
+	netd->leave_cb(netd->userdata, client->id, reason);
 }
 
 static void
