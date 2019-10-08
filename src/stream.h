@@ -101,4 +101,95 @@ read_string(stream_reader* reader, size_t sz) {
 	return result;
 }
 
+inline stream_writer
+writer_init(int size) {
+	uint8_t* data = malloc(size);
+	stream_writer writer = { data, size, 0 };
+	return writer;
+}
+
+inline void
+writer_release(stream_writer* writer) {
+	if (writer->data) {
+		free(writer->data);
+	}
+}
+
+inline void
+writer_reserve(stream_writer* writer, size_t sz) {
+	if (sz + writer->offset <= writer->size) {
+		return;
+	}
+	size_t size = writer->size * 2;
+	if (size < sz + writer->offset) {
+		size = sz + writer->offset;
+	}
+	writer->data = (uint8_t*)realloc(writer->data, size);
+	writer->size = size;
+}
+
+inline void
+writer_push(stream_writer* writer, uint8_t* val, size_t sz) {
+	if (sz == 0) {
+		return;
+	}
+	writer_reserve(writer, sz);
+	memcpy((void*)&writer->data[writer->offset], val, sz);
+	writer->offset += sz;
+}
+
+inline void
+write_char(stream_writer* writer, char ch) {
+	assert(writer->size - writer->offset >= 1);
+	memcpy(writer->data + writer->offset, &ch, 1);
+	writer->offset += 1;
+}
+
+inline void
+write_uint8(stream_writer* writer, uint8_t val) {
+	writer_push(writer, (uint8_t*)&val, sizeof(uint8_t));
+}
+
+inline void
+write_uint16(stream_writer* writer, uint16_t val) {
+	writer_push(writer, (uint8_t*)&val, sizeof(uint16_t));
+}
+
+inline void
+write_uint32(stream_writer* writer, uint32_t val) {
+	writer_push(writer, (uint8_t*)&val, sizeof(uint32_t));
+}
+
+inline void
+write_uint64(stream_writer* writer, uint64_t val) {
+	writer_push(writer, (uint8_t*)&val, sizeof(uint64_t));
+}
+
+inline void
+write_int8(stream_writer* writer, int8_t val) {
+	writer_push(writer, (uint8_t*)&val, sizeof(int8_t));
+}
+
+inline void
+write_int16(stream_writer* writer, int16_t val) {
+	writer_push(writer, (uint8_t*)&val, sizeof(int16_t));
+}
+
+inline void
+write_int32(stream_writer* writer, int32_t val) {
+	writer_push(writer, (uint8_t*)&val, sizeof(int32_t));
+}
+
+inline void
+write_int64(stream_writer* writer, int64_t val) {
+	writer_push(writer, (uint8_t*)&val, sizeof(int64_t));
+}
+
+inline void
+write_string(stream_writer* writer, char* val, size_t sz) {
+	writer_reserve(writer, sz);
+	memcpy((void*)&writer->data[writer->offset], val, sz);
+	writer->offset += sz;
+}
+
 #endif
