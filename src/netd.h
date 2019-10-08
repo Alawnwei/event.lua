@@ -3,31 +3,25 @@
 
 #include "socket/socket_tcp.h"
 
+
+#define kCMD_REGISTER       0
+#define kCMD_LOGIN_REGISTER 1
+#define kCMD_SCENE_REGISTER 2
+#define kCMD_SET_SERVER     3
+#define kCMD_CLIENT_SEND    4
+#define kCMD_CLIENT_BROAD   5
+#define kCMD_CLIENT_CLOSE   6
+
 struct netd;
 struct client;
 
-typedef void(*client_enter_cb)(void* ud, uint32_t client_id, const char* addr);
-typedef void(*client_leave_cb)(void* ud, uint32_t client_id, const char* reason);
-typedef void(*client_message_cb)(void* ud, uint32_t client_id, const char* message, size_t sz);
-
-typedef struct netd_create_opts {
-	void* userdata;
-	client_enter_cb enter_cb;
-	client_leave_cb leave_cb;
-	client_message_cb message_cb;
-	uint32_t max_client;
-	uint32_t max_freq;
-	uint32_t timeout;
-} netd_create_opts;
-
-struct netd* netd_create(struct ev_loop_ctx* loop_ctx, netd_create_opts* opts);
+struct netd* netd_create(struct ev_loop_ctx* loop_ctx, uint32_t max_client, uint32_t max_freq, uint32_t timeout);
 void netd_release(struct netd* netd);
-int netd_start(struct netd* netd, const char* ip, int port);
-int netd_stop(struct netd* netd);
-struct client* netd_get_client(struct netd* netd, uint32_t id);
+int netd_client_start(struct netd* netd, const char* ip, int port);
+int netd_client_stop(struct netd* netd);
+struct client* netd_client_get(struct netd* netd, uint32_t id);
+int netd_client_close(struct netd* netd, uint32_t client_id, int grace);
+int netd_client_send(struct netd* netd, uint32_t client_id, void* data, size_t size);
 
-void netd_set_client_enter_cb(struct netd* netd, client_enter_cb cb);
-void netd_set_client_leave_cb(struct netd* netd, client_leave_cb cb);
-void netd_set_client_message_cb(struct netd* netd, client_message_cb cb);
-
+int netd_server_stop(struct netd* netd);
 #endif
