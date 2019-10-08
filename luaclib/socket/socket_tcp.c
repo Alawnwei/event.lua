@@ -127,8 +127,6 @@ _ev_accept_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 static void
 _ev_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 	ev_session_t* ev_session = io->data;
-
-	int fail = 0;
 	for (;;) {
 		uint32_t space;
 		char* data = rb_reserve(ev_session->input, &space);
@@ -143,16 +141,13 @@ _ev_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 				} else if (errno == EAGAIN) {
 					break;
 				} else {
-					fail = 1;
-					break;
+					goto fd_error;
 				}
 			} else {
-				fail = 1;
-				break;
+				goto fd_error;
 			}
 		} else if (n == 0) {
-			fail = 1;
-			break;
+			goto fd_error;
 		} else {
 			rb_commit(ev_session->input, n);
 			if (n < space) {
@@ -161,16 +156,16 @@ _ev_read_cb(struct ev_loop* loop, struct ev_io* io, int revents) {
 		}
 	}
 
-	if (fail) {
-		ev_session_disable(ev_session, EV_READ | EV_WRITE);
-		ev_session->alive = 0;
-		if (ev_session->event_cb) {
-			ev_session->event_cb(ev_session, ev_session->userdata);
-		}
-	} else {
-		if (ev_session->read_cb) {
-			ev_session->read_cb(ev_session, ev_session->userdata);
-		}
+	if (ev_session->read_cb) {
+		ev_session->read_cb(ev_session, ev_session->userdata);
+	}
+	return;
+
+fd_error:
+	ev_session_disable(ev_session, EV_READ | EV_WRITE);
+	ev_session->alive = 0;
+	if (ev_session->event_cb) {
+		ev_session->event_cb(ev_session, ev_session->userdata);
 	}
 }
 
