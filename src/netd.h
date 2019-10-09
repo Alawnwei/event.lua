@@ -1,7 +1,7 @@
 #ifndef NETD_H
 #define NETD_H
 
-#include "socket/socket_tcp.h"
+
 
 
 #define kCMD_REGISTER       0

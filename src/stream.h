@@ -1,6 +1,9 @@
 #ifndef STREAM_H
 #define STREAM_H
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
 typedef struct stream_reader {
 	uint8_t* data;

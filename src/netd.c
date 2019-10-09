@@ -1,5 +1,6 @@
 #include "netd.h"
 #include "stream.h"
+#include "socket/socket_tcp.h"
 #include "common/encrypt.h"
 #include "common/object_container.h"
 
