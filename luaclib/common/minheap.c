@@ -15,7 +15,7 @@ struct minheap {
 
 
 struct minheap *
-minheap_create(int cap, int(*less)(struct element *l, struct element *r)) {
+	minheap_create(int cap, int(*less)(struct element *l, struct element *r)) {
 	struct minheap *mh = (struct minheap*)malloc(sizeof(*mh));
 	memset(mh, 0, sizeof(*mh));
 	mh->elts = (struct element**)malloc(sizeof(struct element *) * cap);
@@ -44,10 +44,10 @@ minheap_clear(struct minheap * mh, void(*clear)(struct element *elt)) {
 			mh->elts[i]->index = 0;
 	}
 	mh->size = 0;
-} 
+}
 
 struct element *
-minheap_top(struct minheap * mh) {
+	minheap_top(struct minheap * mh) {
 	if (mh->size > 0) {
 		return mh->elts[1];
 	} else {
@@ -72,8 +72,7 @@ up(struct minheap * mh, int index) {
 			swap(mh, index, parent);
 			index = parent;
 			parent = PARENT(index);
-		}
-		else {
+		} else {
 			break;
 		}
 	}
@@ -92,19 +91,17 @@ down(struct minheap * mh, int index) {
 		if (r <= mh->size && mh->less(mh->elts[r], mh->elts[min]))
 			min = r;
 
-		if (min != index)
-		{
+		if (min != index) {
 			swap(mh, index, min);
 			index = min;
-		}
-		else
+		} else
 			return;
 	}
 }
 
 
 void
-minheap_change(struct minheap * mh,struct element * elt) {
+minheap_change(struct minheap * mh, struct element * elt) {
 	int index = elt->index;
 	down(mh, index);
 	if (index == elt->index)
@@ -112,7 +109,7 @@ minheap_change(struct minheap * mh,struct element * elt) {
 }
 
 void
-minheap_delete(struct minheap * mh,struct element * elt) {
+minheap_delete(struct minheap * mh, struct element * elt) {
 	if (mh->size > 0) {
 		if (mh->size == 1 || elt->index == mh->size) {
 			mh->elts[mh->size] = NULL;
@@ -155,7 +152,7 @@ minheap_push(struct minheap * mh, struct element * elt) {
 }
 
 struct element *
-minheap_pop(struct minheap * mh) {
+	minheap_pop(struct minheap * mh) {
 	if (mh->size > 0) {
 		struct element * elt = mh->elts[1];
 		swap(mh, 1, mh->size);

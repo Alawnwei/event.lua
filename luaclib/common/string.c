@@ -81,7 +81,7 @@ string_append_long(string_t* string, long c) {
 
 int
 string_append_utf8(string_t* string, utf8_int32_t code) {
-	char word[8] = {0};
+	char word[8] = { 0 };
 	char* over = utf8catcodepoint(word, code, 8);
 	return kputsn(word, over - word, &string->kstr);
 }
@@ -92,7 +92,7 @@ string_concat(string_t** list, int size, int* outsize) {
 	string_init(&result, NULL, 0);
 
 	int i;
-	for(i = 0; i < size;i++) {
+	for (i = 0; i < size; i++) {
 		string_t* str = list[i];
 		string_append_lstr(&result, str->kstr.s, str->kstr.l);
 	}

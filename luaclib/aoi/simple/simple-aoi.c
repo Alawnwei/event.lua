@@ -86,7 +86,7 @@ tile_init(struct aoi_context* ctx) {
 			tl->z = z;
 			tl->headers = malloc(LAYER_MAX * sizeof(link_list_t *));
 			int i;
-			for(i = 0; i < LAYER_MAX;i++) {
+			for (i = 0; i < LAYER_MAX; i++) {
 				tl->headers[i] = malloc(sizeof(link_list_t));
 				memset(tl->headers[i], 0, sizeof(link_list_t));
 				tl->headers[i]->head = NULL;
@@ -115,8 +115,7 @@ tile_push(struct tile* tl, int layer, object_t* object) {
 
 	if (list->head == NULL) {
 		list->head = object;
-	}
-	else {
+	} else {
 		object->next = list->head;
 		list->head->prev = object;
 		list->head = object;
@@ -187,19 +186,19 @@ forearch_list(link_list_t *list, object_t *self, int flag, callback_func func, v
 #define forearch_list(list,self,flag,func,ud) \
 do {\
 	struct object *cursor = list->head;\
-	while (cursor) {\
+		while (cursor) {\
 		if (cursor == self) {\
 			cursor = cursor->next;\
 			continue;\
-		}\
+				}\
 		if ((flag) & FLAG_SELF) {\
 			func(self->uid, cursor->uid, ud);\
-		}\
+				}\
 		if ((flag) & FLAG_OTHER) {\
 			func(cursor->uid, self->uid, ud);\
-		}\
+				}\
 		cursor = cursor->next;\
-	}\
+			}\
 } while(0)
 
 #endif
@@ -285,12 +284,10 @@ aoi_enter(aoi_context_t* ctx, int uid, float x, float z, int layer, void* ud) {
 			if (self->layer == LAYER_ITEM) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER, ctx->enter_func, ud);
-			}
-			else if (self->layer == LAYER_MONSTER) {
+			} else if (self->layer == LAYER_MONSTER) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER | FLAG_SELF, ctx->enter_func, ud);
-			}
-			else {
+			} else {
 				link_list_t *list = tile_layer(tl, LAYER_ITEM);
 				forearch_list(list, self, FLAG_SELF, ctx->enter_func, ud);
 
@@ -330,8 +327,7 @@ aoi_leave(aoi_context_t* ctx, int id, void* ud) {
 			if (self->layer == LAYER_ITEM || self->layer == LAYER_MONSTER) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER, ctx->leave_func, ud);
-			}
-			else {
+			} else {
 				link_list_t *list = tile_layer(tl, LAYER_MONSTER);
 				forearch_list(list, self, FLAG_OTHER, ctx->enter_func, ud);
 
@@ -389,12 +385,10 @@ aoi_update(aoi_context_t* ctx, int id, float x, float z, void* ud) {
 			if (self->layer == LAYER_ITEM) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER, ctx->enter_func, ud);
-			}
-			else if (self->layer == LAYER_MONSTER) {
+			} else if (self->layer == LAYER_MONSTER) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER | FLAG_SELF, ctx->enter_func, ud);
-			}
-			else {
+			} else {
 				link_list_t *list = tile_layer(tl, LAYER_ITEM);
 				forearch_list(list, self, FLAG_SELF, ctx->enter_func, ud);
 
@@ -417,12 +411,10 @@ aoi_update(aoi_context_t* ctx, int id, float x, float z, void* ud) {
 			if (self->layer == LAYER_ITEM) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER, ctx->leave_func, ud);
-			}
-			else if (self->layer == LAYER_MONSTER) {
+			} else if (self->layer == LAYER_MONSTER) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER | FLAG_SELF, ctx->leave_func, ud);
-			}
-			else {
+			} else {
 				link_list_t *list = tile_layer(tl, LAYER_ITEM);
 				forearch_list(list, self, FLAG_SELF, ctx->leave_func, ud);
 
@@ -470,12 +462,10 @@ get_witness(aoi_context_t* ctx, int id, callback_func func, void* ud) {
 			if (self->layer == LAYER_ITEM) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER, func, ud);
-			}
-			else if (self->layer == LAYER_MONSTER) {
+			} else if (self->layer == LAYER_MONSTER) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER, func, ud);
-			}
-			else {
+			} else {
 				link_list_t *list = tile_layer(tl, LAYER_MONSTER);
 				forearch_list(list, self, FLAG_OTHER, func, ud);
 
@@ -510,8 +500,7 @@ get_visible(aoi_context_t* ctx, int id, callback_func func, void* ud) {
 			if (self->layer == LAYER_MONSTER) {
 				link_list_t *list = tile_layer(tl, LAYER_USER);
 				forearch_list(list, self, FLAG_OTHER, func, ud);
-			}
-			else {
+			} else {
 				link_list_t *list = tile_layer(tl, LAYER_MONSTER);
 				forearch_list(list, self, FLAG_OTHER, func, ud);
 

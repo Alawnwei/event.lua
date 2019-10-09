@@ -5,6 +5,7 @@ LUA_STATIC_LIB ?= ./3rd/lua/src/liblua.a
 LIBEV_PATH ?= 3rd/libev
 LIBEV_INC ?= 3rd/libev
 LIBEV_SHARE_LIB ?= 3rd/libev/.libs/libev.so
+LIBEV_STATIC_LIB ?= 3rd/libev/.libs/libev.a
 
 TC_PATH ?= 3rd/gperftools
 TC_INC ?= 3rd/gperftools/src/gperftools
@@ -31,7 +32,7 @@ EFENCE_STATIC_LIB ?= ./3rd/electric-fence/libefence.a
 
 LUA_CLIB_PATH ?= ./.libs
 LUA_CLIB_SRC ?= ./luaclib
-LUA_CLIB = ev worker tp dump serialize redis bson mongo util lfs cjson http ikcp simpleaoi toweraoi linkaoi pathfinder nav protocolparser protocolcore trie filter co luasql snapshot 
+LUA_CLIB = ev worker tp dump serialize bson mongo util lfs cjson http ikcp simpleaoi toweraoi linkaoi pathfinder nav protocolparser protocolcore trie filter co luasql snapshot 
 
 CONVERT_PATH ?= ./luaclib/convert
 
@@ -42,14 +43,24 @@ DOUBLE_CONVERSION_SRC ?= $(wildcard $(CONVERT_PATH)/double-conversion/*.cc)
 DOUBLE_CONVERSION_OBJ = $(patsubst %.cc,%.o,$(DOUBLE_CONVERSION_SRC)) 
 
 MAIN_PATH ?= ./src
-MAIN_SRC ?= $(wildcard $(MAIN_PATH)/*.c)
-MAIN_SRC +=  ./luaclib/socket/socket_tcp.c ./luaclib/socket/socket_util.c ./luaclib/socket/ring_buffer.c ./luaclib/common/encrypt.c ./luaclib/common/object_container.c
+MAIN_SRC ?= ./src/main.c ./src/helper.c
 MAIN_OBJ = $(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(MAIN_SRC)))
+
+NETD_SRC = ./src/netd.c ./src/helper.c ./luaclib/socket/socket_tcp.c ./luaclib/socket/socket_util.c ./luaclib/socket/ring_buffer.c ./luaclib/common/encrypt.c ./luaclib/common/object_container.c
+NETD_OBJ = $(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(NETD_SRC)))
+
+GAME_SRC ?= ./src/game.c ./src/helper.c
+GAME_OBJ = $(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(GAME_SRC)))
+
 
 TARGET ?= event
 
+NETD ?= netd
+
+GAME ?= game
+
 CC=gcc
-CFLAGS=-g -Wall -fno-omit-frame-pointer $(DEFINE)
+CFLAGS=-g -Wall -fno-omit-frame-pointer -Wno-unused-local-typedefs $(DEFINE)
 
 LDFLAGS=-lrt -lm -ldl -lpthread -lssl -lunwind -lstdc++
 STATIC_LIBS=$(LUA_STATIC_LIB) $(TC_STATIC_LIB) 
@@ -64,6 +75,8 @@ all : \
 	$(LIBARES_SHARE_LIB) \
 	$(STATIC_LIBS) \
 	$(TARGET) \
+	$(NETD) \
+	$(GAME) \
 	$(foreach v, $(LUA_CLIB), $(LUA_CLIB_PATH)/$(v).so) 
 	cp $(TARGET) $(TARGET).raw && strip $(TARGET).raw
 
@@ -115,6 +128,12 @@ efence :
 $(TARGET) : $(MAIN_OBJ) $(STATIC_LIBS) $(LIBEV_SHARE_LIB)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -I./$(LIBEV_INC) -Wl,-E
 
+$(NETD) : $(NETD_OBJ) $(STATIC_LIBS) $(LIBEV_STATIC_LIB)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -I./$(LIBEV_INC) -Wl,-E
+
+$(GAME) : $(GAME_OBJ) $(STATIC_LIBS) $(LIBEV_STATIC_LIB)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -I./$(LIBEV_INC) -Wl,-E
+
 $(LUA_CLIB_PATH)/ev.so : $(LUA_CLIB_SRC)/lua-ev.c $(LUA_CLIB_SRC)/lua-gate.c $(LUA_CLIB_SRC)/common/common.c $(LUA_CLIB_SRC)/socket/gate.c $(LUA_CLIB_SRC)/common/encrypt.c $(LUA_CLIB_SRC)/socket/socket_tcp.c $(LUA_CLIB_SRC)/socket/socket_udp.c $(LUA_CLIB_SRC)/socket/socket_pipe.c $(LUA_CLIB_SRC)/socket/socket_util.c $(LUA_CLIB_SRC)/socket/socket_httpc.c $(LUA_CLIB_SRC)/socket/dns_resolver.c $(LUA_CLIB_SRC)/common/object_container.c $(LUA_CLIB_SRC)/common/string.c $(LUA_CLIB_SRC)/socket/ring_buffer.c $(LIBEV_SHARE_LIB) $(LIBCURL_SHARE_LIB) $(LIBARES_SHARE_LIB) | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) -Wno-strict-aliasing $(SHARED) $^ -o $@ -I$(LUA_INC) -I$(LIBEV_INC) -I$(LUA_CLIB_SRC) -I$(LIBCURL_INC) -I$(LIBARES_INC) -I./3rd/klib
 
@@ -129,9 +148,6 @@ $(LUA_CLIB_PATH)/dump.so : $(LUA_CLIB_SRC)/lua-dump.c ./3rd/lua-cjson/dtoa.c $(C
 
 $(LUA_CLIB_PATH)/serialize.so : $(LUA_CLIB_SRC)/lua-serialize.c | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) $(SHARED) $^ -o $@ -I$(LUA_INC)
-
-$(LUA_CLIB_PATH)/redis.so : $(LUA_CLIB_SRC)/lua-redis.c $(CONVERT_OBJ) | $(LUA_CLIB_PATH)
-	$(CC) $(CFLAGS) $(SHARED) $^ -o $@ -I$(LUA_INC) -I$(CONVERT_PATH)
 
 $(LUA_CLIB_PATH)/bson.so : $(LUA_CLIB_SRC)/lua-bson.c | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) $(SHARED) $^ -o $@ -I$(LUA_INC)
@@ -192,8 +208,12 @@ $(LUA_CLIB_PATH)/snapshot.so : $(LUA_CLIB_SRC)/lua-snapshot.c | $(LUA_CLIB_PATH)
 	
 clean :
 	rm -rf $(TARGET) $(TARGET).raw
+	rm -rf $(NETD)
+	rm -rf $(GAME)
 	rm -rf $(LUA_CLIB_PATH)
 	rm -rf $(MAIN_OBJ)
+	rm -rf $(NETD_OBJ)
+	rm -rf $(GAME_OBJ)
 	rm -rf luaclib/convert/milo/*.o
 	rm -rf luaclib/convert/double-conversion/*.o
 

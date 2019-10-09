@@ -8,7 +8,7 @@ typedef struct frame {
 	const char* name;
 	const char* source;
 	int linedefined;
-	
+
 	int invoke_count;
 	double invoke_diff;
 	double invoke_start;

@@ -18,18 +18,18 @@ struct message_queue {
 	int writer;
 };
 
-struct message_queue* 
-queue_create() {
+struct message_queue*
+	queue_create() {
 	struct message_queue* mq_ctx = malloc(sizeof(*mq_ctx));
 	int i;
-	for(i = 0;i < 2;i++) {
+	for (i = 0; i < 2; i++) {
 		struct queue_context* q = &mq_ctx->queue[i];
 		q->tail = q->head = 0;
 		q->cap = 8;
 		q->threshold = THRESHOLD;
 		q->overload = 0;
 		q->message = malloc(sizeof(*q->message) * q->cap);
-		memset(q->message,0,sizeof(*q->message) * q->cap);
+		memset(q->message, 0, sizeof(*q->message) * q->cap);
 	}
 	mq_ctx->reader = 0;
 	mq_ctx->writer = 1;
@@ -47,7 +47,7 @@ queue_free(struct message_queue* mq) {
 
 static inline int
 queue_length(struct queue_context *q) {
-	int head, tail,cap;
+	int head, tail, cap;
 	head = q->head;
 	tail = q->tail;
 	cap = q->cap;
@@ -59,7 +59,7 @@ queue_length(struct queue_context *q) {
 }
 
 void
-queue_push(struct message_queue* mq,int source,int session,void* data,size_t size) {
+queue_push(struct message_queue* mq, int source, int session, void* data, size_t size) {
 	pthread_mutex_lock(&mq->lock);
 	assert(mq->writer != mq->reader);
 	struct queue_context* q = &mq->queue[mq->writer];
@@ -72,12 +72,12 @@ queue_push(struct message_queue* mq,int source,int session,void* data,size_t siz
 
 	if (++q->tail >= q->cap)
 		q->tail = 0;
-	
+
 	if (q->head == q->tail) {
 		struct queue_message* nmesasge = malloc(sizeof(*nmesasge) * q->cap * 2);
 		int i;
-		for(i = 0;i < q->cap;i++) {
-			nmesasge[i] = q->message[(q->head + i)%q->cap];
+		for (i = 0; i < q->cap; i++) {
+			nmesasge[i] = q->message[(q->head + i) % q->cap];
 		}
 		q->head = 0;
 		q->tail = q->cap;
@@ -94,12 +94,12 @@ queue_push(struct message_queue* mq,int source,int session,void* data,size_t siz
 }
 
 struct queue_message*
-queue_pop(struct message_queue* mq,int ud) {
+	queue_pop(struct message_queue* mq, int ud) {
 	struct queue_context* queue = &mq->queue[mq->reader];
-	
+
 	if (queue->overload == 1) {
 		queue->overload = 0;
-		fprintf(stderr,"ctx:[%d] reader queue overload:%d\n",ud,queue_length(queue));
+		fprintf(stderr, "ctx:[%d] reader queue overload:%d\n", ud, queue_length(queue));
 	}
 
 	if (queue->head != queue->tail) {

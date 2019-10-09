@@ -89,7 +89,7 @@ get_week_start(time_t ts) {
 	} else {
 		week_time -= (local.tm_wday - 1) * 24 * 3600;
 	}
-	
+
 	return week_time;
 }
 
@@ -124,8 +124,8 @@ get_month_over(time_t ts) {
 	if (local.tm_mon == 11) {
 		local.tm_year += 1;
 		local.tm_mon = 0;
-	} else { 
-		local.tm_mon += 1; 
+	} else {
+		local.tm_mon += 1;
 	}
 	return mktime(&local);
 }

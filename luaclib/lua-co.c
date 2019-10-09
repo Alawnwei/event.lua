@@ -17,10 +17,10 @@ get_time() {
 	clock_gettime(CLOCK_THREAD_CPUTIME_ID, &ti);
 	int sec = ti.tv_sec & 0xffff;
 	int nsec = ti.tv_nsec;
-	return (double)sec + (double)nsec / NANOSEC;	
+	return (double)sec + (double)nsec / NANOSEC;
 }
 
-static inline double 
+static inline double
 diff_time(double start) {
 	double now = get_time();
 	if (now < start) {
@@ -59,7 +59,7 @@ lstop(lua_State *L) {
 	lua_rawget(L, lua_upvalueindex(1));
 	if (lua_type(L, -1) != LUA_TNUMBER) {
 		return luaL_error(L, "call profile.start() before profile.stop()");
-	} 
+	}
 	double ti = diff_time(lua_tonumber(L, -1));
 	lua_pushvalue(L, 1);	// push coroutine
 	lua_rawget(L, lua_upvalueindex(2));
@@ -84,9 +84,9 @@ timing_resume(lua_State *L) {
 	lua_pushvalue(L, -1);
 	lua_rawget(L, lua_upvalueindex(2));
 	if (lua_isnil(L, -1)) {		// check total time
-		lua_pop(L,2);	// pop from coroutine
+		lua_pop(L, 2);	// pop from coroutine
 	} else {
-		lua_pop(L,1);
+		lua_pop(L, 1);
 		double ti = get_time();
 
 		lua_pushnumber(L, ti);
@@ -100,7 +100,7 @@ timing_resume(lua_State *L) {
 
 static int
 lresume(lua_State *L) {
-	lua_pushvalue(L,1);
+	lua_pushvalue(L, 1);
 	return timing_resume(L);
 }
 
@@ -110,15 +110,15 @@ timing_yield(lua_State *L) {
 	lua_pushvalue(L, -1);
 	lua_rawget(L, lua_upvalueindex(2));	// check total time
 	if (lua_isnil(L, -1)) {
-		lua_pop(L,2);
+		lua_pop(L, 2);
 	} else {
 		double ti = lua_tonumber(L, -1);
-		lua_pop(L,1);
+		lua_pop(L, 1);
 
 		lua_pushvalue(L, -1);	// push coroutine
 		lua_rawget(L, lua_upvalueindex(1));
 		double starttime = lua_tonumber(L, -1);
-		lua_pop(L,1);
+		lua_pop(L, 1);
 
 		double diff = diff_time(starttime);
 		ti += diff;
@@ -149,7 +149,7 @@ luaopen_co_core(lua_State *L) {
 		{ "yield", lyield },
 		{ NULL, NULL },
 	};
-	luaL_newlibtable(L,l);
+	luaL_newlibtable(L, l);
 	lua_newtable(L);	// table thread->start time
 	lua_newtable(L);	// table thread->total time
 
@@ -158,11 +158,11 @@ luaopen_co_core(lua_State *L) {
 	lua_setfield(L, -2, "__mode");
 
 	lua_pushvalue(L, -1);
-	lua_setmetatable(L, -3); 
+	lua_setmetatable(L, -3);
 	lua_setmetatable(L, -3);
 
 	lua_pushnil(L);	// cfunction (coroutine.resume or coroutine.yield)
-	luaL_setfuncs(L,l,3);
+	luaL_setfuncs(L, l, 3);
 
 	int libtable = lua_gettop(L);
 
@@ -172,24 +172,24 @@ luaopen_co_core(lua_State *L) {
 	lua_CFunction co_resume = lua_tocfunction(L, -1);
 	if (co_resume == NULL)
 		return luaL_error(L, "Can't get coroutine.resume");
-	lua_pop(L,1);
+	lua_pop(L, 1);
 
 	lua_getfield(L, libtable, "resume");
 	lua_pushcfunction(L, co_resume);
 	lua_setupvalue(L, -2, 3);
-	lua_pop(L,1);
+	lua_pop(L, 1);
 
 	lua_getfield(L, -1, "yield");
 
 	lua_CFunction co_yield = lua_tocfunction(L, -1);
 	if (co_yield == NULL)
 		return luaL_error(L, "Can't get coroutine.yield");
-	lua_pop(L,1);
+	lua_pop(L, 1);
 
 	lua_getfield(L, libtable, "yield");
 	lua_pushcfunction(L, co_yield);
 	lua_setupvalue(L, -2, 3);
-	lua_pop(L,1);
+	lua_pop(L, 1);
 
 	lua_settop(L, libtable);
 

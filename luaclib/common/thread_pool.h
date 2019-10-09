@@ -6,11 +6,11 @@
 struct thread_pool;
 
 
-typedef void (*thread_consumer)(struct thread_pool* pool, int index, int session, void* data, size_t size, void* ud);
+typedef void(*thread_consumer)(struct thread_pool* pool, int index, int session, void* data, size_t size, void* ud);
 
-typedef void (*thread_init)(struct thread_pool* pool, int index, void* ud);
-typedef void (*thread_wakeup)(struct thread_pool* pool, int index, void* ud);
-typedef void (*thread_fina)(struct thread_pool* pool, int index, void* ud);
+typedef void(*thread_init)(struct thread_pool* pool, int index, void* ud);
+typedef void(*thread_wakeup)(struct thread_pool* pool, int index, void* ud);
+typedef void(*thread_fina)(struct thread_pool* pool, int index, void* ud);
 
 struct thread_pool* thread_pool_create(thread_init init_func, thread_fina fina_func, thread_wakeup wakeup_func, void* ud);
 void thread_pool_release(struct thread_pool*);

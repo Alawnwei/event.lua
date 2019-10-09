@@ -81,49 +81,44 @@ translate(aoi_t* aoi, location_t* in, location_t* out) {
 
 static inline void
 get_region(aoi_t* aoi, location_t* local, region_t* out, uint32_t range) {
-	if ( local->x - range < 0 ) {
+	if (local->x - range < 0) {
 		out->begin_x = 0;
 		out->end_x = local->x + range;
 		if (out->end_x < 0) {
 			out->end_x = 0;
-		} else if ( out->end_x >= aoi->tower_x ) {
+		} else if (out->end_x >= aoi->tower_x) {
 			out->end_x = aoi->tower_x - 1;
 		}
-	}
-	else if ( local->x + range >= aoi->tower_x ) {
+	} else if (local->x + range >= aoi->tower_x) {
 		out->end_x = aoi->tower_x - 1;
 		out->begin_x = local->x - range;
-		if ( out->begin_x < 0 ) {
+		if (out->begin_x < 0) {
 			out->begin_x = 0;
-		} else if ( out->begin_x >= aoi->tower_x ) {
+		} else if (out->begin_x >= aoi->tower_x) {
 			out->begin_x = aoi->tower_x - 1;
 		}
-	}
-	else {
+	} else {
 		out->begin_x = local->x - range;
 		out->end_x = local->x + range;
 	}
 
-	if ( local->z - range < 0 ) {
+	if (local->z - range < 0) {
 		out->begin_z = 0;
 		out->end_z = local->z + range;
-		if ( out->end_z < 0 ) {
+		if (out->end_z < 0) {
 			out->end_z = 0;
-		} else if ( out->end_z >= aoi->tower_z ) {
+		} else if (out->end_z >= aoi->tower_z) {
 			out->end_z = aoi->tower_z - 1;
 		}
-	}
-	else if ( local->z + range >= aoi->tower_z ) {
+	} else if (local->z + range >= aoi->tower_z) {
 		out->end_z = aoi->tower_z - 1;
 		out->begin_z = local->z - range;
-		if ( out->begin_z < 0 ) {
+		if (out->begin_z < 0) {
 			out->begin_z = 0;
-		}
-		else if ( out->begin_z >= aoi->tower_z ) {
+		} else if (out->begin_z >= aoi->tower_z) {
 			out->begin_z = aoi->tower_z - 1;
 		}
-	}
-	else {
+	} else {
 		out->begin_z = local->z - range;
 		out->end_z = local->z + range;
 	}
@@ -156,10 +151,9 @@ free_object(aoi_t* aoi, object_t* obj) {
 
 static inline void
 link_entity(tower_t* tower, object_t* object) {
-	if ( tower->head == NULL ) {
+	if (tower->head == NULL) {
 		tower->head = object;
-	}
-	else {
+	} else {
 		tower->head->param.entity.prev = object;
 		object->param.entity.prev = NULL;
 		object->param.entity.next = tower->head;
@@ -169,13 +163,12 @@ link_entity(tower_t* tower, object_t* object) {
 
 static inline void
 unlink_entity(tower_t* tower, object_t* object) {
-	if ( object->param.entity.prev != NULL ) {
+	if (object->param.entity.prev != NULL) {
 		object->param.entity.prev->param.entity.next = object->param.entity.next;
-	}
-	else {
+	} else {
 		tower->head = object->param.entity.next;
 	}
-	if ( object->param.entity.next != NULL ) {
+	if (object->param.entity.next != NULL) {
 		object->param.entity.next->param.entity.prev = object->param.entity.prev;
 	}
 	object->param.entity.prev = NULL;
@@ -185,7 +178,7 @@ unlink_entity(tower_t* tower, object_t* object) {
 static inline struct object*
 get_object(aoi_t* aoi, int id, int type) {
 	struct object* result = container_get(aoi->container, id);
-	if ( result->type != type )
+	if (result->type != type)
 		return NULL;
 
 	return result;
@@ -193,7 +186,7 @@ get_object(aoi_t* aoi, int id, int type) {
 
 static inline void
 assert_position(aoi_t* aoi, float x, float z) {
-	if ( x < 0 || z < 0 || x > aoi->width || z > aoi->height ) {
+	if (x < 0 || z < 0 || x > aoi->width || z > aoi->height) {
 		assert(0);
 	}
 }
@@ -216,7 +209,7 @@ create_entity(aoi_t* aoi, int uid, uint8_t mask, float x, float z, enter_func fu
 	object_t* other;
 	hash_foreach(tower->hash, k, other, {
 		(void)k;
-		if ( other->uid != entity->uid && (other->mask & entity->mask)) {
+		if (other->uid != entity->uid && (other->mask & entity->mask)) {
 			func(entity->uid, other->uid, ud);
 		}
 	});
@@ -239,7 +232,7 @@ remove_entity(aoi_t* aoi, int id, leave_func func, void* ud) {
 	object_t* other;
 	hash_foreach(tower->hash, k, other, {
 		(void)k;
-		if ( other->uid != entity->uid && (other->mask & entity->mask)) {
+		if (other->uid != entity->uid && (other->mask & entity->mask)) {
 			func(entity->uid, other->uid, ud);
 		}
 	});
@@ -263,7 +256,7 @@ move_entity(aoi_t* aoi, int id, float nx, float nz, enter_func enter_func, void*
 	translate(aoi, &entity->local, &out);
 	tower_t* ntower = &aoi->towers[(uint32_t)out.x][(uint32_t)out.z];
 
-	if ( ntower == otower ) {
+	if (ntower == otower) {
 		return;
 	}
 
@@ -278,13 +271,12 @@ move_entity(aoi_t* aoi, int id, float nx, float nz, enter_func enter_func, void*
 
 	hash_foreach(otower->hash, k, other, {
 		(void)k;
-		if ( other->uid != entity->uid ) {
-			if ( leave == NULL ) {
+		if (other->uid != entity->uid) {
+			if (leave == NULL) {
 				leave = other;
 				other->param.trigger.next = NULL;
 				other->param.trigger.prev = NULL;
-			}
-			else {
+			} else {
 				leave->param.trigger.prev = other;
 				other->param.trigger.next = leave;
 				leave = other;
@@ -293,26 +285,24 @@ move_entity(aoi_t* aoi, int id, float nx, float nz, enter_func enter_func, void*
 	});
 
 	hash_foreach(ntower->hash, k, other, {
-		if ( other->uid != entity->uid ) {
-			if ( other->param.trigger.next != NULL || other->param.trigger.prev != NULL || other == leave) {
-				if ( other->param.trigger.prev != NULL ) {
+		if (other->uid != entity->uid) {
+			if (other->param.trigger.next != NULL || other->param.trigger.prev != NULL || other == leave) {
+				if (other->param.trigger.prev != NULL) {
 					other->param.trigger.prev->param.trigger.next = other->param.trigger.next;
 				}
-				if ( other->param.trigger.next != NULL ) {
+				if (other->param.trigger.next != NULL) {
 					other->param.trigger.next->param.trigger.prev = other->param.trigger.prev;
 				}
-				if ( other == leave ) {
+				if (other == leave) {
 					leave = other->param.trigger.next;
 				}
 				other->param.trigger.next = other->param.trigger.prev = NULL;
-			}
-			else {
-				if ( enter == NULL ) {
+			} else {
+				if (enter == NULL) {
 					enter = other;
 					other->param.trigger.next = NULL;
 					other->param.trigger.prev = NULL;
-				}
-				else {
+				} else {
 					other->param.trigger.next = enter;
 					enter = other;
 				}
@@ -321,7 +311,7 @@ move_entity(aoi_t* aoi, int id, float nx, float nz, enter_func enter_func, void*
 	});
 
 	object_t* cursor = leave;
-	while ( cursor != NULL ) {
+	while (cursor != NULL) {
 		object_t* obj = cursor;
 		cursor = cursor->param.trigger.next;
 		if (obj->mask & entity->mask) {
@@ -331,7 +321,7 @@ move_entity(aoi_t* aoi, int id, float nx, float nz, enter_func enter_func, void*
 	}
 
 	cursor = enter;
-	while ( cursor != NULL ) {
+	while (cursor != NULL) {
 		object_t* obj = cursor;
 		cursor = cursor->param.trigger.next;
 		if (obj->mask & entity->mask) {
@@ -347,7 +337,7 @@ create_trigger(aoi_t* aoi, int uid, uint8_t mask, float x, float z, int range, e
 
 	object_t* trigger = new_object(aoi, uid, TYPE_TRIGGER, x, z);
 	trigger->mask = mask;
-	
+
 	trigger->param.trigger.range = range;
 
 	location_t out;
@@ -357,16 +347,16 @@ create_trigger(aoi_t* aoi, int uid, uint8_t mask, float x, float z, int range, e
 	get_region(aoi, &out, &region, range);
 
 	uint32_t x_index;
-	for ( x_index = region.begin_x; x_index <= region.end_x; x_index++ ) {
+	for (x_index = region.begin_x; x_index <= region.end_x; x_index++) {
 		uint32_t z_index;
-		for ( z_index = region.begin_z; z_index <= region.end_z; z_index++ ) {
+		for (z_index = region.begin_z; z_index <= region.end_z; z_index++) {
 			tower_t* tower = &aoi->towers[x_index][z_index];
 
 			hash_set(tower->hash, trigger->uid, trigger);
 
 			struct object* cursor = tower->head;
-			while ( cursor ) {
-				if ( cursor->uid != trigger->uid && (trigger->mask & cursor->mask)) {
+			while (cursor) {
+				if (cursor->uid != trigger->uid && (trigger->mask & cursor->mask)) {
 					func(trigger->uid, cursor->uid, ud);
 				}
 				cursor = cursor->param.entity.next;
@@ -387,9 +377,9 @@ remove_trigger(aoi_t* aoi, int id) {
 	get_region(aoi, &out, &region, trigger->param.trigger.range);
 
 	uint32_t x_index;
-	for ( x_index = region.begin_x; x_index <= region.end_x; x_index++ ) {
+	for (x_index = region.begin_x; x_index <= region.end_x; x_index++) {
 		uint32_t z_index;
-		for ( z_index = region.begin_z; z_index <= region.end_z; z_index++ ) {
+		for (z_index = region.begin_z; z_index <= region.end_z; z_index++) {
 			tower_t* tower = &aoi->towers[x_index][z_index];
 			hash_del(tower->hash, trigger->uid);
 		}
@@ -412,7 +402,7 @@ move_trigger(aoi_t* aoi, int id, float nx, float nz, enter_func enter, void* ent
 	trigger->local.z = nz;
 	translate(aoi, &trigger->local, &nout);
 
-	if ( oout.x == nout.x && oout.z == nout.z ) {
+	if (oout.x == nout.x && oout.z == nout.z) {
 		return;
 	}
 
@@ -423,18 +413,18 @@ move_trigger(aoi_t* aoi, int id, float nx, float nz, enter_func enter, void* ent
 	get_region(aoi, &nout, &nregion, trigger->param.trigger.range);
 
 	uint32_t x_index;
-	for ( x_index = oregion.begin_x; x_index <= oregion.end_x; x_index++ ) {
+	for (x_index = oregion.begin_x; x_index <= oregion.end_x; x_index++) {
 		uint32_t z_index;
-		for ( z_index = oregion.begin_z; z_index <= oregion.end_z; z_index++ ) {
-			if ( x_index >= nregion.begin_x && x_index <= nregion.end_x && z_index >= nregion.begin_z && z_index <= nregion.end_z ) {
+		for (z_index = oregion.begin_z; z_index <= oregion.end_z; z_index++) {
+			if (x_index >= nregion.begin_x && x_index <= nregion.end_x && z_index >= nregion.begin_z && z_index <= nregion.end_z) {
 				continue;
 			}
 			tower_t* tower = &aoi->towers[x_index][z_index];
 			hash_del(tower->hash, trigger->uid);
 
 			struct object* cursor = tower->head;
-			while ( cursor ) {
-				if ( cursor->uid != trigger->uid && (trigger->mask & cursor->mask)) {
+			while (cursor) {
+				if (cursor->uid != trigger->uid && (trigger->mask & cursor->mask)) {
 					leave(trigger->uid, cursor->uid, leave_ud);
 				}
 				cursor = cursor->param.entity.next;
@@ -443,10 +433,10 @@ move_trigger(aoi_t* aoi, int id, float nx, float nz, enter_func enter, void* ent
 	}
 
 
-	for ( x_index = nregion.begin_x; x_index <= nregion.end_x; x_index++ ) {
+	for (x_index = nregion.begin_x; x_index <= nregion.end_x; x_index++) {
 		uint32_t z_index;
-		for ( z_index = nregion.begin_z; z_index <= nregion.end_z; z_index++ ) {
-			if ( x_index >= oregion.begin_x && x_index <= oregion.end_x && z_index >= oregion.begin_z && z_index <= oregion.end_z ) {
+		for (z_index = nregion.begin_z; z_index <= nregion.end_z; z_index++) {
+			if (x_index >= oregion.begin_x && x_index <= oregion.end_x && z_index >= oregion.begin_z && z_index <= oregion.end_z) {
 				continue;
 			}
 			tower_t* tower = &aoi->towers[x_index][z_index];
@@ -454,8 +444,8 @@ move_trigger(aoi_t* aoi, int id, float nx, float nz, enter_func enter, void* ent
 			hash_set(tower->hash, trigger->uid, trigger);
 
 			struct object* cursor = tower->head;
-			while ( cursor ) {
-				if ( cursor->uid != trigger->uid && (trigger->mask & cursor->mask)) {
+			while (cursor) {
+				if (cursor->uid != trigger->uid && (trigger->mask & cursor->mask)) {
 					enter(trigger->uid, cursor->uid, enter_ud);
 				}
 				cursor = cursor->param.entity.next;
@@ -467,9 +457,9 @@ move_trigger(aoi_t* aoi, int id, float nx, float nz, enter_func enter, void* ent
 void
 release_aoi(aoi_t* aoi) {
 	uint32_t x;
-	for ( x = 0; x < aoi->tower_x; x++ ) {
+	for (x = 0; x < aoi->tower_x; x++) {
 		uint32_t z;
-		for ( z = 0; z < aoi->tower_z; z++ ) {
+		for (z = 0; z < aoi->tower_z; z++) {
 			tower_t* tower = &aoi->towers[x][z];
 			hash_free(tower->hash);
 		}
@@ -483,8 +473,8 @@ release_aoi(aoi_t* aoi) {
 
 aoi_t*
 create_aoi(int width, int height, int cell) {
-	aoi_t* aoi_ctx = (aoi_t*)malloc(sizeof( aoi_t ));
-	memset(aoi_ctx, 0, sizeof( *aoi_ctx ));
+	aoi_t* aoi_ctx = (aoi_t*)malloc(sizeof(aoi_t));
+	memset(aoi_ctx, 0, sizeof(*aoi_ctx));
 
 	aoi_ctx->pool = pool_create(sizeof(object_t));
 	aoi_ctx->container = container_create(64);
@@ -493,22 +483,22 @@ create_aoi(int width, int height, int cell) {
 	aoi_ctx->height = height;
 	aoi_ctx->cell = cell;
 
-	if ( aoi_ctx->width < aoi_ctx->cell )
+	if (aoi_ctx->width < aoi_ctx->cell)
 		aoi_ctx->cell = aoi_ctx->width;
 
-	if ( aoi_ctx->height < aoi_ctx->cell )
+	if (aoi_ctx->height < aoi_ctx->cell)
 		aoi_ctx->cell = aoi_ctx->height;
 
 	aoi_ctx->tower_x = aoi_ctx->width / aoi_ctx->cell + 1;
 	aoi_ctx->tower_z = aoi_ctx->height / aoi_ctx->cell + 1;
 
-	aoi_ctx->towers = malloc(aoi_ctx->tower_x * sizeof( *aoi_ctx->towers ));
+	aoi_ctx->towers = malloc(aoi_ctx->tower_x * sizeof(*aoi_ctx->towers));
 	uint32_t x;
-	for ( x = 0; x < aoi_ctx->tower_x; x++ ) {
-		aoi_ctx->towers[x] = malloc(aoi_ctx->tower_z * sizeof( tower_t ));
-		memset(aoi_ctx->towers[x], 0, aoi_ctx->tower_z * sizeof( tower_t ));
+	for (x = 0; x < aoi_ctx->tower_x; x++) {
+		aoi_ctx->towers[x] = malloc(aoi_ctx->tower_z * sizeof(tower_t));
+		memset(aoi_ctx->towers[x], 0, aoi_ctx->tower_z * sizeof(tower_t));
 		uint32_t z;
-		for ( z = 0; z < aoi_ctx->tower_z; z++ ) {
+		for (z = 0; z < aoi_ctx->tower_z; z++) {
 			tower_t* tower = &aoi_ctx->towers[x][z];
 			tower->head = NULL;
 			tower->hash = hash_new();
@@ -531,7 +521,7 @@ get_witness(struct aoi* aoi, int id, callback_func func, void* ud) {
 
 	hash_foreach(tower->hash, k, other, {
 		(void)k;
-		if ( other->uid != entity->uid && (other->mask & entity->mask) ) {
+		if (other->uid != entity->uid && (other->mask & entity->mask)) {
 			func(other->uid, ud);
 		}
 	});
@@ -548,13 +538,13 @@ get_visible(struct aoi* aoi, int id, callback_func func, void* ud) {
 	get_region(aoi, &out, &region, trigger->param.trigger.range);
 
 	uint32_t x_index;
-	for ( x_index = region.begin_x; x_index <= region.end_x; x_index++ ) {
+	for (x_index = region.begin_x; x_index <= region.end_x; x_index++) {
 		uint32_t z_index;
-		for ( z_index = region.begin_z; z_index <= region.end_z; z_index++ ) {
+		for (z_index = region.begin_z; z_index <= region.end_z; z_index++) {
 			tower_t* tower = &aoi->towers[x_index][z_index];
 			struct object* cursor = tower->head;
-			while ( cursor ) {
-				if ( trigger->uid != cursor->uid && (trigger->mask & cursor->mask)) {
+			while (cursor) {
+				if (trigger->uid != cursor->uid && (trigger->mask & cursor->mask)) {
 					func(cursor->uid, ud);
 				}
 				cursor = cursor->param.trigger.next;
@@ -566,12 +556,12 @@ get_visible(struct aoi* aoi, int id, callback_func func, void* ud) {
 void
 foreach_entity(aoi_t* aoi, foreach_entity_func func, void* ud) {
 	uint32_t x;
-	for ( x = 0; x < aoi->tower_x; x++ ) {
+	for (x = 0; x < aoi->tower_x; x++) {
 		uint32_t z;
-		for ( z = 0; z < aoi->tower_z; z++ ) {
+		for (z = 0; z < aoi->tower_z; z++) {
 			tower_t* tower = &aoi->towers[x][z];
 			object_t* cursor = tower->head;
-			while ( cursor != NULL ) {
+			while (cursor != NULL) {
 				object_t* entity = cursor;
 				func(entity->uid, entity->local.x, entity->local.z, ud);
 				cursor = cursor->param.entity.next;
@@ -585,15 +575,15 @@ foreach_trigger(aoi_t* aoi, foreach_trigger_func func, void* ud) {
 	hash_t* hash = hash_new();
 
 	uint32_t x;
-	for ( x = 0; x < aoi->tower_x; x++ ) {
+	for (x = 0; x < aoi->tower_x; x++) {
 		uint32_t z;
-		for ( z = 0; z < aoi->tower_z; z++ ) {
+		for (z = 0; z < aoi->tower_z; z++) {
 			tower_t* tower = &aoi->towers[x][z];
 			khiter_t k;
 			object_t* trigger;
 			hash_foreach(tower->hash, k, trigger, {
 				(void)k;
-				if ( !hash_has(hash, trigger->uid) ) {
+				if (!hash_has(hash, trigger->uid)) {
 					hash_set(hash, trigger->uid, trigger);
 				}
 			});

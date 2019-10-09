@@ -21,8 +21,8 @@ cross_dot(struct vector3* vt1, struct vector3* vt2) {
 
 inline void
 cross_point(struct vector3* a, struct vector3* b, struct vector3* c, struct vector3* d, struct vector3* result) {
-	result->x = ( ( b->x - a->x ) * ( c->x - d->x ) * ( c->z - a->z ) - c->x * ( b->x - a->x ) * ( c->z - d->z ) + a->x * ( b->z - a->z ) * ( c->x - d->x ) ) / ( ( b->z - a->z )*( c->x - d->x ) - ( b->x - a->x ) * ( c->z - d->z ) );
-	result->z = ( ( b->z - a->z ) * ( c->z - d->z ) * ( c->x - a->x ) - c->z * ( b->z - a->z ) * ( c->x - d->x ) + a->z * ( b->x - a->x ) * ( c->z - d->z ) ) / ( ( b->x - a->x )*( c->z - d->z ) - ( b->z - a->z ) * ( c->x - d->x ) );
+	result->x = ((b->x - a->x) * (c->x - d->x) * (c->z - a->z) - c->x * (b->x - a->x) * (c->z - d->z) + a->x * (b->z - a->z) * (c->x - d->x)) / ((b->z - a->z)*(c->x - d->x) - (b->x - a->x) * (c->z - d->z));
+	result->z = ((b->z - a->z) * (c->z - d->z) * (c->x - a->x) - c->z * (b->z - a->z) * (c->x - d->x) + a->z * (b->x - a->x) * (c->z - d->z)) / ((b->x - a->x)*(c->z - d->z) - (b->z - a->z) * (c->x - d->x));
 }
 
 inline void
@@ -41,7 +41,7 @@ vector3_sub(struct vector3* a, struct vector3* b, struct vector3* result) {
 
 void
 set_mask(struct nav_mesh_mask* ctx, int mask, int enable) {
-	if ( mask >= ctx->size ) {
+	if (mask >= ctx->size) {
 		ctx->size *= 2;
 		ctx->mask = realloc(ctx->mask, sizeof(int)* ctx->size);
 	}
@@ -60,30 +60,30 @@ dot2line(struct vector3* pt, struct vector3* start, struct vector3* over) {
 	double a, b, c, s;
 
 	a = dot2dot(pt, over);
-	if ( a <= 0.00001 ) {
+	if (a <= 0.00001) {
 		return 0.0f;
 	}
 
 	b = dot2dot(pt, start);
-	if ( b <= 0.00001 ) {
+	if (b <= 0.00001) {
 		return 0.0f;
 	}
 
 	c = dot2dot(start, over);
-	if ( c <= 0.00001 ) {
+	if (c <= 0.00001) {
 		return 0.0f;
 	}
 
-	if ( a * a >= b * b + c * c ) {
+	if (a * a >= b * b + c * c) {
 		return b;
 	}
 
-	if ( b * b >= a * a + c * c ) {
+	if (b * b >= a * a + c * c) {
 		return a;
 	}
 
-	s = ( a + b + c ) / 2;
-	s = sqrt(s * ( s - a ) * ( s - b ) * ( s - c ));
+	s = (a + b + c) / 2;
+	s = sqrt(s * (s - a) * (s - b) * (s - c));
 
 	return  2 * s / c;
 }
@@ -93,11 +93,11 @@ dot2poly(struct nav_mesh_context* mesh_ctx, int poly_id, struct vector3* pt) {
 	struct nav_node* nav_node = &mesh_ctx->node[poly_id];
 	int i;
 	double min = DBL_MAX;
-	for ( i = 0; i < nav_node->size; i++ ) {
+	for (i = 0; i < nav_node->size; i++) {
 		struct vector3* vt1 = &mesh_ctx->vertices[nav_node->poly[i]];
-		struct vector3* vt2 = &mesh_ctx->vertices[nav_node->poly[( i + 1 ) % nav_node->size]];
+		struct vector3* vt2 = &mesh_ctx->vertices[nav_node->poly[(i + 1) % nav_node->size]];
 		double dist = dot2line(pt, vt1, vt2);
-		if ( dist < min )
+		if (dist < min)
 			min = dist;
 	}
 	return min;
@@ -108,7 +108,7 @@ vt_inside_vt(struct vector3* vt, struct vector3* vtl, struct vector3* vtr) {
 	double sign_a = cross_product_direction(vtl, vt);
 	double sign_b = cross_product_direction(vtr, vt);
 
-	if ( ( sign_a < 0 && sign_b > 0 ) || ( sign_a == 0 && sign_b > 0 ) || ( sign_a < 0 && sign_b == 0 ) ) {
+	if ((sign_a < 0 && sign_b > 0) || (sign_a == 0 && sign_b > 0) || (sign_a < 0 && sign_b == 0)) {
 		return true;
 	}
 	return false;
@@ -118,23 +118,23 @@ bool
 inside_poly(struct nav_mesh_context* mesh_ctx, int* poly, int size, struct vector3* vt3) {
 	int sign = 0;
 	int i;
-	for ( i = 0; i < size; i++ ) {
+	for (i = 0; i < size; i++) {
 		struct vector3* vt1 = &mesh_ctx->vertices[poly[i]];
-		struct vector3* vt2 = &mesh_ctx->vertices[poly[( i + 1 ) % size]];
+		struct vector3* vt2 = &mesh_ctx->vertices[poly[(i + 1) % size]];
 
 		struct vector3 vt21 = { vt2->x - vt1->x, 0, vt2->z - vt1->z };
 		struct vector3 vt31 = { vt3->x - vt1->x, 0, vt3->z - vt1->z };
 
 		double dot = cross_product_direction(&vt21, &vt31);
-		if ( dot == 0 )
+		if (dot == 0)
 			continue;
 
-		if ( sign == 0 )
+		if (sign == 0)
 			sign = dot > 0 ? 1 : -1;
 		else {
-			if ( sign == 1 && dot < 0 )
+			if (sign == 1 && dot < 0)
 				return false;
-			else if ( sign == -1 && dot > 0 )
+			else if (sign == -1 && dot > 0)
 				return false;
 		}
 	}
@@ -149,31 +149,31 @@ inside_node(struct nav_mesh_context* mesh_ctx, int polyId, double x, double y, d
 }
 
 struct nav_node*
-search_node(struct nav_mesh_context* ctx, double x, double y, double z) {
-	if ( x < ctx->lt.x || x > ctx->br.x )
+	search_node(struct nav_mesh_context* ctx, double x, double y, double z) {
+	if (x < ctx->lt.x || x > ctx->br.x)
 		return NULL;
-	if ( z < ctx->lt.z || z > ctx->br.z )
+	if (z < ctx->lt.z || z > ctx->br.z)
 		return NULL;
 
-	if ( ctx->tile == NULL ) {
+	if (ctx->tile == NULL) {
 		int i;
-		for ( i = 0; i < ctx->node_size; i++ ) {
-			if ( inside_node(ctx, i, x, y, z) )
+		for (i = 0; i < ctx->node_size; i++) {
+			if (inside_node(ctx, i, x, y, z))
 				return &ctx->node[i];
 		}
 		return NULL;
 	}
 
-	int x_index = ( x - ctx->lt.x ) / ctx->tile_unit;
-	int z_index = ( z - ctx->lt.z ) / ctx->tile_unit;
+	int x_index = (x - ctx->lt.x) / ctx->tile_unit;
+	int z_index = (z - ctx->lt.z) / ctx->tile_unit;
 
 	int index = x_index + z_index * ctx->tile_width;
 
 	struct nav_tile* tile = &ctx->tile[index];
 
 	int i;
-	for ( i = 0; i < tile->offset; i++ ) {
-		if ( inside_node(ctx, tile->node[i], x, y, z) ) {
+	for (i = 0; i < tile->offset; i++) {
+		if (inside_node(ctx, tile->node[i], x, y, z)) {
 			return &ctx->node[tile->node[i]];
 		}
 	}
@@ -182,20 +182,20 @@ search_node(struct nav_mesh_context* ctx, double x, double y, double z) {
 
 	double min_dt = DBL_MAX;
 	int nearest = -1;
-	for ( i = 0; i < tile->offset; i++ ) {
+	for (i = 0; i < tile->offset; i++) {
 		double dt = dot2poly(ctx, tile->node[i], &pt);
-		if ( min_dt > dt ) {
+		if (min_dt > dt) {
 			min_dt = dt;
 			nearest = tile->node[i];
 		}
 	}
 
-	if ( nearest != -1 ) {
+	if (nearest != -1) {
 		return &ctx->node[nearest];
 	}
 
 	int center_node = 0;
-	if ( around_movable(ctx, x, z, 1, &center_node, NULL, NULL) ) {
+	if (around_movable(ctx, x, z, 1, &center_node, NULL, NULL)) {
 		return &ctx->node[center_node];
 	}
 
@@ -205,27 +205,27 @@ search_node(struct nav_mesh_context* ctx, double x, double y, double z) {
 void
 get_link(struct nav_mesh_context* mesh_ctx, struct nav_node* node, struct nav_node** linked_node) {
 	int i;
-	for ( i = 0; i < node->size; i++ ) {
+	for (i = 0; i < node->size; i++) {
 		int border_index = node->border[i];
 		struct nav_border* border = get_border(mesh_ctx, border_index);
 
 		int linked = -1;
-		if ( border->node[0] == node->id )
+		if (border->node[0] == node->id)
 			linked = border->node[1];
 		else
 			linked = border->node[0];
 
-		if ( linked == -1 )
+		if (linked == -1)
 			continue;
 
 		struct nav_node* tmp = get_node(mesh_ctx, linked);
-		if ( tmp->closed ) {
+		if (tmp->closed) {
 			continue;
 		}
 
-		if ( get_mask(mesh_ctx->mask_ctx, tmp->mask) ) {
-			tmp->next = ( *linked_node );
-			( *linked_node ) = tmp;
+		if (get_mask(mesh_ctx->mask_ctx, tmp->mask)) {
+			tmp->next = (*linked_node);
+			(*linked_node) = tmp;
 			tmp->reserve = border->opposite;
 			vector3_copy(&tmp->pos, &border->center);
 		}
@@ -256,15 +256,15 @@ raycast(struct nav_mesh_context* ctx, struct vector3* pt0, struct vector3* pt1, 
 	struct vector3 vt10;
 	vector3_sub(pt1, pt0, &vt10);
 
-	while ( node ) {
-		if ( inside_node(ctx, node->id, pt1->x, pt1->y, pt1->z) ) {
+	while (node) {
+		if (inside_node(ctx, node->id, pt1->x, pt1->y, pt1->z)) {
 			vector3_copy(result, pt1);
 			return true;
 		}
 
 		bool crossed = false;
 		int i;
-		for ( i = 0; i < node->size; i++ ) {
+		for (i = 0; i < node->size; i++) {
 			struct nav_border* border = get_border(ctx, node->border[i]);
 
 			struct vector3* pt3 = &ctx->vertices[border->a];
@@ -274,28 +274,26 @@ raycast(struct nav_mesh_context* ctx, struct vector3* pt0, struct vector3* pt1, 
 			vector3_sub(pt3, pt0, &vt30);
 			vector3_sub(pt4, pt0, &vt40);
 
-			if ( vt_inside_vt(&vt10, &vt30, &vt40) ) {
+			if (vt_inside_vt(&vt10, &vt30, &vt40)) {
 				int next = -1;
-				if ( border->node[0] != -1 ) {
-					if ( border->node[0] == node->id )
+				if (border->node[0] != -1) {
+					if (border->node[0] == node->id)
 						next = border->node[1];
 					else
 						next = border->node[0];
-				}
-				else
+				} else
 					assert(border->node[1] == node->id);
 
-				if ( next == -1 ) {
+				if (next == -1) {
 					cross_point(pt3, pt4, pt1, pt0, result);
 					return true;
-				}
-				else {
+				} else {
 					struct nav_node* next_node = get_node(ctx, next);
-					if ( get_mask(ctx->mask_ctx, next_node->mask) == 0 ) {
+					if (get_mask(ctx->mask_ctx, next_node->mask) == 0) {
 						cross_point(pt3, pt4, pt1, pt0, result);
 						return true;
 					}
-					if ( dumper )
+					if (dumper)
 						dumper(userdata, next);
 
 					crossed = true;
@@ -305,7 +303,7 @@ raycast(struct nav_mesh_context* ctx, struct vector3* pt0, struct vector3* pt1, 
 			}
 		}
 
-		if ( !crossed ) {
+		if (!crossed) {
 			assert(index == 0);
 			pt0->x = node->center.x;
 			pt0->z = node->center.z;
@@ -330,14 +328,14 @@ clear_node(struct nav_node* n) {
 
 static inline void
 heap_clear(mh_elt_t* elt) {
-	struct nav_node *node = ( struct nav_node * )elt;
+	struct nav_node *node = (struct nav_node *)elt;
 	clear_node(node);
 }
 
 static inline void
 reset(struct nav_mesh_context* ctx) {
 	struct nav_node * node = ctx->closelist;
-	while ( node ) {
+	while (node) {
 		struct nav_node * tmp = node;
 		node = tmp->next;
 		clear_node(tmp);
@@ -347,21 +345,20 @@ reset(struct nav_mesh_context* ctx) {
 }
 
 struct nav_node*
-next_border(struct nav_mesh_context* ctx, struct nav_node* node, struct vector3* wp, int *link_border) {
+	next_border(struct nav_mesh_context* ctx, struct nav_node* node, struct vector3* wp, int *link_border) {
 	struct vector3 vt0, vt1;
 	*link_border = node->link_border;
-	while ( *link_border != -1 ) {
+	while (*link_border != -1) {
 		struct nav_border* border = get_border(ctx, *link_border);
 		vector3_sub(&ctx->vertices[border->a], wp, &vt0);
 		vector3_sub(&ctx->vertices[border->b], wp, &vt1);
-		if ( ( vt0.x == 0 && vt0.z == 0 ) || ( vt1.x == 0 && vt1.z == 0 ) ) {
+		if ((vt0.x == 0 && vt0.z == 0) || (vt1.x == 0 && vt1.z == 0)) {
 			node = node->link_parent;
 			*link_border = node->link_border;
-		}
-		else
+		} else
 			break;
 	}
-	if ( *link_border != -1 )
+	if (*link_border != -1)
 		return node;
 
 	return NULL;
@@ -374,9 +371,9 @@ path_init(struct nav_mesh_context* mesh_ctx) {
 
 void
 path_add(struct nav_mesh_context* mesh_ctx, struct vector3* wp) {
-	if ( mesh_ctx->result.offset >= mesh_ctx->result.size ) {
+	if (mesh_ctx->result.offset >= mesh_ctx->result.size) {
 		mesh_ctx->result.size *= 2;
-		mesh_ctx->result.wp = ( struct vector3* )realloc(mesh_ctx->result.wp, sizeof( struct vector3 )*mesh_ctx->result.size);
+		mesh_ctx->result.wp = (struct vector3*)realloc(mesh_ctx->result.wp, sizeof(struct vector3)*mesh_ctx->result.size);
 	}
 
 	mesh_ctx->result.wp[mesh_ctx->result.offset].x = wp->x;
@@ -406,11 +403,9 @@ make_waypoint(struct nav_mesh_context* mesh_ctx, struct vector3* pt0, struct vec
 	struct nav_node* right_node = node->link_parent;
 
 	struct nav_node* tmp = node->link_parent;
-	while ( tmp )
-	{
+	while (tmp) {
 		int link_border = tmp->link_border;
-		if ( link_border == -1 )
-		{
+		if (link_border == -1) {
 			struct vector3 tmp_target;
 			tmp_target.x = pt0->x - pt_wp->x;
 			tmp_target.z = pt0->z - pt_wp->z;
@@ -418,23 +413,18 @@ make_waypoint(struct nav_mesh_context* mesh_ctx, struct vector3* pt0, struct vec
 			double forward_a = cross_product_direction(&vt_left, &tmp_target);
 			double forward_b = cross_product_direction(&vt_right, &tmp_target);
 
-			if ( forward_a < 0 && forward_b > 0 )
-			{
+			if (forward_a < 0 && forward_b > 0) {
 				path_add(mesh_ctx, pt0);
 				break;
-			}
-			else
-			{
-				if ( forward_a > 0 && forward_b > 0 )
-				{
+			} else {
+				if (forward_a > 0 && forward_b > 0) {
 					pt_wp->x = pt_left.x;
 					pt_wp->z = pt_left.z;
 
 					path_add(mesh_ctx, pt_wp);
 
 					left_node = next_border(mesh_ctx, left_node, pt_wp, &link_border);
-					if ( left_node == NULL )
-					{
+					if (left_node == NULL) {
 						path_add(mesh_ctx, pt0);
 						break;
 					}
@@ -456,17 +446,14 @@ make_waypoint(struct nav_mesh_context* mesh_ctx, struct vector3* pt0, struct vec
 					left_node = tmp;
 					right_node = tmp;
 					continue;
-				}
-				else if ( forward_a < 0 && forward_b < 0 )
-				{
+				} else if (forward_a < 0 && forward_b < 0) {
 					pt_wp->x = pt_right.x;
 					pt_wp->z = pt_right.z;
 
 					path_add(mesh_ctx, pt_wp);
 
 					right_node = next_border(mesh_ctx, right_node, pt_wp, &link_border);
-					if ( right_node == NULL )
-					{
+					if (right_node == NULL) {
 						path_add(mesh_ctx, pt0);
 						break;
 					}
@@ -509,27 +496,23 @@ make_waypoint(struct nav_mesh_context* mesh_ctx, struct vector3* pt0, struct vec
 		double forward_right_a = cross_product_direction(&vt_left, &tmp_vt_right);
 		double forward_right_b = cross_product_direction(&vt_right, &tmp_vt_right);
 
-		if ( forward_left_a < 0 && forward_left_b > 0 )
-		{
+		if (forward_left_a < 0 && forward_left_b > 0) {
 			left_node = tmp->link_parent;
 			vector3_copy(&pt_left, &tmp_pt_left);
 			vector3_sub(&pt_left, pt_wp, &vt_left);
 		}
 
-		if ( forward_right_a < 0 && forward_right_b > 0 )
-		{
+		if (forward_right_a < 0 && forward_right_b > 0) {
 			right_node = tmp->link_parent;
 			vector3_copy(&pt_right, &tmp_pt_right);
 			vector3_sub(&pt_right, pt_wp, &vt_right);
 		}
 
-		if ( forward_left_a > 0 && forward_left_b > 0 && forward_right_a > 0 && forward_right_b > 0 )
-		{
+		if (forward_left_a > 0 && forward_left_b > 0 && forward_right_a > 0 && forward_right_b > 0) {
 			vector3_copy(pt_wp, &pt_left);
 
 			left_node = next_border(mesh_ctx, left_node, pt_wp, &link_border);
-			if ( left_node == NULL )
-			{
+			if (left_node == NULL) {
 				path_add(mesh_ctx, pt0);
 				break;
 			}
@@ -550,13 +533,11 @@ make_waypoint(struct nav_mesh_context* mesh_ctx, struct vector3* pt0, struct vec
 			continue;
 		}
 
-		if ( forward_left_a < 0 && forward_left_b < 0 && forward_right_a < 0 && forward_right_b < 0 )
-		{
+		if (forward_left_a < 0 && forward_left_b < 0 && forward_right_a < 0 && forward_right_b < 0) {
 			vector3_copy(pt_wp, &pt_right);
 
 			right_node = next_border(mesh_ctx, right_node, pt_wp, &link_border);
-			if ( right_node == NULL )
-			{
+			if (right_node == NULL) {
 				path_add(mesh_ctx, pt0);
 				break;
 			}
@@ -581,16 +562,16 @@ make_waypoint(struct nav_mesh_context* mesh_ctx, struct vector3* pt0, struct vec
 }
 
 struct nav_path*
-astar_find(struct nav_mesh_context* mesh_ctx, struct vector3* pt_start, struct vector3* pt_over, search_dumper dumper, void* userdata) {
+	astar_find(struct nav_mesh_context* mesh_ctx, struct vector3* pt_start, struct vector3* pt_over, search_dumper dumper, void* userdata) {
 	path_init(mesh_ctx);
 
 	struct nav_node* node_start = search_node(mesh_ctx, pt_start->x, pt_start->y, pt_start->z);
 	struct nav_node* node_over = search_node(mesh_ctx, pt_over->x, pt_over->y, pt_over->z);
 
-	if ( !node_start || !node_over )
+	if (!node_start || !node_over)
 		return NULL;
 
-	if ( node_start == node_over ) {
+	if (node_start == node_over) {
 		path_add(mesh_ctx, pt_over);
 		path_add(mesh_ctx, pt_start);
 		return &mesh_ctx->result;
@@ -601,12 +582,12 @@ astar_find(struct nav_mesh_context* mesh_ctx, struct vector3* pt_start, struct v
 	mh_push(&mesh_ctx->openlist, &node_start->elt);
 	struct nav_node* node = NULL;
 
-	while ( ( node = ( struct nav_node* )mh_pop(&mesh_ctx->openlist) ) != NULL ) {
+	while ((node = (struct nav_node*)mh_pop(&mesh_ctx->openlist)) != NULL) {
 		node->closed = 1;
 		node->next = mesh_ctx->closelist;
 		mesh_ctx->closelist = node;
-		
-		if ( node == node_over ) {
+
+		if (node == node_over) {
 			make_waypoint(mesh_ctx, pt_start, pt_over, node);
 			reset(mesh_ctx);
 			return &mesh_ctx->result;
@@ -615,25 +596,24 @@ astar_find(struct nav_mesh_context* mesh_ctx, struct vector3* pt_start, struct v
 		struct nav_node* linked_node = NULL;
 		get_link(mesh_ctx, node, &linked_node);
 
-		while ( linked_node ) {
-			if ( mh_elt_has_init(&linked_node->elt) ) {
+		while (linked_node) {
+			if (mh_elt_has_init(&linked_node->elt)) {
 				double nG = node->G + G_COST(node, linked_node);
-				if ( nG < linked_node->G ) {
+				if (nG < linked_node->G) {
 					linked_node->G = nG;
 					linked_node->F = linked_node->G + linked_node->H;
 					linked_node->link_parent = node;
 					linked_node->link_border = linked_node->reserve;
 					mh_adjust(&mesh_ctx->openlist, &linked_node->elt);
 				}
-			}
-			else {
+			} else {
 				linked_node->G = node->G + G_COST(node, linked_node);
 				linked_node->H = H_COST(linked_node, pt_over);
 				linked_node->F = linked_node->G + linked_node->H;
 				linked_node->link_parent = node;
 				linked_node->link_border = linked_node->reserve;
 				mh_push(&mesh_ctx->openlist, &linked_node->elt);
-				if ( dumper != NULL )
+				if (dumper != NULL)
 					dumper(userdata, linked_node->id);
 			}
 			struct nav_node* tmp = linked_node;
@@ -646,8 +626,8 @@ astar_find(struct nav_mesh_context* mesh_ctx, struct vector3* pt_start, struct v
 }
 
 struct vector3*
-around_movable(struct nav_mesh_context* ctx, double x, double z, int range, int* center_node, search_dumper dumper, void* userdata) {
-	if ( ctx->tile == NULL )
+	around_movable(struct nav_mesh_context* ctx, double x, double z, int range, int* center_node, search_dumper dumper, void* userdata) {
+	if (ctx->tile == NULL)
 		return NULL;
 
 	struct vector3 pt = { x, 0, z };
@@ -656,11 +636,11 @@ around_movable(struct nav_mesh_context* ctx, double x, double z, int range, int*
 	int result_node = -1;
 	double min_dt = DBL_MAX;
 
-	int x_index = ( x - ctx->lt.x ) / ctx->tile_unit;
-	int z_index = ( z - ctx->lt.z ) / ctx->tile_unit;
+	int x_index = (x - ctx->lt.x) / ctx->tile_unit;
+	int z_index = (z - ctx->lt.z) / ctx->tile_unit;
 
 	int r;
-	for ( r = 1; r <= range; ++r ) {
+	for (r = 1; r <= range; ++r) {
 		int x_min = x_index - r;
 		int x_max = x_index + r;
 		int z_min = z_index - r;
@@ -671,25 +651,25 @@ around_movable(struct nav_mesh_context* ctx, double x, double z, int range, int*
 		int z_range[2] = { z_min, z_max };
 
 		int j;
-		for ( j = 0; j < 2; j++ ) {
+		for (j = 0; j < 2; j++) {
 			z = z_range[j];
 
-			if ( z < 0 || z >= ctx->tile_heigh )
+			if (z < 0 || z >= ctx->tile_heigh)
 				continue;
 
-			for ( x = x_min; x <= x_max; x++ ) {
+			for (x = x_min; x <= x_max; x++) {
 
-				if ( x < 0 || x >= ctx->tile_width )
+				if (x < 0 || x >= ctx->tile_width)
 					continue;
 
 				int index = x + z * ctx->tile_width;
 				struct nav_tile* tile = &ctx->tile[index];
-				if ( dumper )
+				if (dumper)
 					dumper(userdata, index);
 
-				if ( tile->center_node != -1 ) {
+				if (tile->center_node != -1) {
 					double dt = dot2dot(&pt, &tile->center);
-					if ( dt < min_dt ) {
+					if (dt < min_dt) {
 						result = &tile->center;
 						result_node = tile->center_node;
 						min_dt = dt;
@@ -700,22 +680,22 @@ around_movable(struct nav_mesh_context* ctx, double x, double z, int range, int*
 
 		int x_range[2] = { x_min, x_max };
 
-		for ( j = 0; j < 2; j++ ) {
+		for (j = 0; j < 2; j++) {
 			x = x_range[j];
-			if ( x < 0 || x >= ctx->tile_width )
+			if (x < 0 || x >= ctx->tile_width)
 				continue;
 
-			for ( z = z_min; z < z_max; z++ ) {
-				if ( z < 0 || z >= ctx->tile_heigh )
+			for (z = z_min; z < z_max; z++) {
+				if (z < 0 || z >= ctx->tile_heigh)
 					continue;
 
 				int index = x + z * ctx->tile_width;
 				struct nav_tile* tile = &ctx->tile[index];
-				if ( dumper )
+				if (dumper)
 					dumper(userdata, index);
-				if ( tile->center_node != -1 ) {
+				if (tile->center_node != -1) {
 					double dt = dot2dot(&pt, &tile->center);
-					if ( dt < min_dt ) {
+					if (dt < min_dt) {
 						result = &tile->center;
 						result_node = tile->center_node;
 						min_dt = dt;
@@ -726,7 +706,7 @@ around_movable(struct nav_mesh_context* ctx, double x, double z, int range, int*
 		}
 	}
 
-	if ( center_node ) {
+	if (center_node) {
 		*center_node = result_node;
 	}
 	return result;
@@ -734,43 +714,43 @@ around_movable(struct nav_mesh_context* ctx, double x, double z, int range, int*
 
 bool
 point_movable(struct nav_mesh_context* ctx, double x, double z, double fix, double* dt_offset) {
-	if ( x < ctx->lt.x || x > ctx->br.x )
+	if (x < ctx->lt.x || x > ctx->br.x)
 		return false;
 
-	if ( z < ctx->lt.z || z > ctx->br.z )
+	if (z < ctx->lt.z || z > ctx->br.z)
 		return false;
 
-	if ( ctx->tile == NULL ) {
+	if (ctx->tile == NULL) {
 		return false;
 	}
 
-	if ( dt_offset ) {
+	if (dt_offset) {
 		*dt_offset = 0;
 	}
 
 	struct nav_node* node = NULL;
 
-	int x_index = ( x - ctx->lt.x ) / ctx->tile_unit;
-	int z_index = ( z - ctx->lt.z ) / ctx->tile_unit;
+	int x_index = (x - ctx->lt.x) / ctx->tile_unit;
+	int z_index = (z - ctx->lt.z) / ctx->tile_unit;
 	int index = x_index + z_index * ctx->tile_width;
 
 	struct nav_tile* tile = &ctx->tile[index];
 
 	int i;
-	for ( i = 0; i < tile->offset; i++ ) {
-		if ( inside_node(ctx, tile->node[i], x, 0, z) ) {
+	for (i = 0; i < tile->offset; i++) {
+		if (inside_node(ctx, tile->node[i], x, 0, z)) {
 			node = &ctx->node[tile->node[i]];
 			break;
 		}
 	}
-	if ( node ) {
-		if ( get_mask(ctx->mask_ctx, node->mask) == 1 ) {
+	if (node) {
+		if (get_mask(ctx->mask_ctx, node->mask) == 1) {
 			return true;
 		}
 		return false;
 	}
 
-	if ( fix <= 0.1f ) {
+	if (fix <= 0.1f) {
 		return false;
 	}
 
@@ -779,28 +759,28 @@ point_movable(struct nav_mesh_context* ctx, double x, double z, double fix, doub
 	double dt_min = -1;
 
 	int x_axis;
-	for ( x_axis = x_index - 1; x_axis <= x_index + 1; x_axis++ ) {
-		if ( x_axis < 0 || x_axis >= ctx->tile_width ) {
+	for (x_axis = x_index - 1; x_axis <= x_index + 1; x_axis++) {
+		if (x_axis < 0 || x_axis >= ctx->tile_width) {
 			continue;
 		}
 		int z_axis;
-		for ( z_axis = z_index - 1; z_axis <= z_index + 1; z_axis++ ) {
-			if ( z_axis < 0 || z_axis >= ctx->tile_heigh ) {
+		for (z_axis = z_index - 1; z_axis <= z_index + 1; z_axis++) {
+			if (z_axis < 0 || z_axis >= ctx->tile_heigh) {
 				continue;
 			}
 			index = x_axis + z_axis * ctx->tile_width;
 			tile = &ctx->tile[index];
 			int i;
-			for ( i = 0; i < tile->offset; i++ ) {
+			for (i = 0; i < tile->offset; i++) {
 				int poly_id = tile->node[i];
 
 				node = get_node(ctx, poly_id);
-				if ( node->dt_recorded == 0 ) {
+				if (node->dt_recorded == 0) {
 					node->dt_recorded = 1;
 					node->next = search_node;
 					search_node = node;
 					double dt = dot2poly(ctx, poly_id, &pt);
-					if ( dt_min < 0 || dt_min > dt ) {
+					if (dt_min < 0 || dt_min > dt) {
 						dt_min = dt;
 					}
 				}
@@ -808,7 +788,7 @@ point_movable(struct nav_mesh_context* ctx, double x, double z, double fix, doub
 		}
 	}
 
-	while ( search_node ) {
+	while (search_node) {
 		struct nav_node* current = search_node;
 		assert(current->dt_recorded == 1);
 		current->dt_recorded = 0;
@@ -816,10 +796,10 @@ point_movable(struct nav_mesh_context* ctx, double x, double z, double fix, doub
 		current->next = NULL;
 	}
 
-	if ( dt_offset ) {
+	if (dt_offset) {
 		*dt_offset = dt_min;
 	}
-	if ( dt_min > 0 && dt_min <= fix ) {
+	if (dt_min > 0 && dt_min <= fix) {
 		return true;
 	}
 
@@ -831,14 +811,14 @@ void
 point_random(struct nav_mesh_context* ctx, struct vector3* result, int poly) {
 	int rand_poly = -1;
 
-	if ( poly >= 0 && poly < ctx->node_size ) {
+	if (poly >= 0 && poly < ctx->node_size) {
 		rand_poly = poly;
 	} else {
-		double ratio = ( rand() % 10000 ) / 10000.0f;
+		double ratio = (rand() % 10000) / 10000.0f;
 		double weight = ctx->area * ratio;
 		double tmp = 0.0f;
 		int i;
-		for ( i = 0; i < ctx->node_size;i++ ){
+		for (i = 0; i < ctx->node_size; i++) {
 			tmp += ctx->node[i].area;
 			if (weight <= tmp) {
 				rand_poly = i;
@@ -846,9 +826,9 @@ point_random(struct nav_mesh_context* ctx, struct vector3* result, int poly) {
 			}
 		}
 	}
-	
+
 	struct nav_node* node = &ctx->node[rand_poly];
-	int rand_triangle = rand() % ( node->size - 2 ) + 1;
+	int rand_triangle = rand() % (node->size - 2) + 1;
 
 	struct vector3* PA = &ctx->vertices[node->poly[0]];
 	struct vector3* PB = &ctx->vertices[node->poly[rand_triangle]];
@@ -878,7 +858,7 @@ point_random(struct nav_mesh_context* ctx, struct vector3* result, int poly) {
 bool
 point_height(struct nav_mesh_context* ctx, double x, double z, double* height) {
 	struct nav_node* node = search_node(ctx, x, 0, z);
-	if ( !node ) {
+	if (!node) {
 		return false;
 	}
 
@@ -892,7 +872,7 @@ point_height(struct nav_mesh_context* ctx, double x, double z, double* height) {
 	struct nav_border* cross_border = NULL;
 
 	int i;
-	for ( i = 0; i < node->size; i++ ) {
+	for (i = 0; i < node->size; i++) {
 		struct nav_border* border = get_border(ctx, node->border[i]);
 
 		struct vector3* pt3 = &ctx->vertices[border->a];
@@ -905,14 +885,14 @@ point_height(struct nav_mesh_context* ctx, double x, double z, double* height) {
 		double sign_a = cross_product_direction(&vt30, &vt10);
 		double sign_b = cross_product_direction(&vt40, &vt10);
 
-		if ( ( sign_a < 0 && sign_b > 0 ) || ( sign_a == 0 && sign_b > 0 ) || ( sign_a < 0 && sign_b == 0 ) ) {
+		if ((sign_a < 0 && sign_b > 0) || (sign_a == 0 && sign_b > 0) || (sign_a < 0 && sign_b == 0)) {
 			cross_point(pt3, pt4, &over, &start, &result);
 			cross_border = border;
 			break;
 		}
 	}
 
-	if ( !cross_border ) {
+	if (!cross_border) {
 		return false;
 	}
 
@@ -925,11 +905,10 @@ point_height(struct nav_mesh_context* ctx, double x, double z, double* height) {
 	double border_height;
 	if (dt_border < 0.0001) {
 		border_height = pt_border1->y;
+	} else {
+		border_height = pt_border0->y + (pt_border1->y - pt_border0->y) * (dt_cross / dt_border);
 	}
-	else {
-		border_height  = pt_border0->y + ( pt_border1->y - pt_border0->y ) * ( dt_cross / dt_border );
-	}
-	
+
 	double center_height = node->center.y;
 
 	double dt_center = dot2dot(&node->center, &result);
@@ -938,9 +917,8 @@ point_height(struct nav_mesh_context* ctx, double x, double z, double* height) {
 	double pt_height;
 	if (dt_center < 0.0001) {
 		pt_height = node->center.y;
-	}
-	else {
-		pt_height = border_height + ( center_height - border_height ) * ( dt_point / dt_center );
+	} else {
+		pt_height = border_height + (center_height - border_height) * (dt_point / dt_center);
 	}
 
 	*height = pt_height;
@@ -967,7 +945,7 @@ point_height(struct nav_mesh_context* ctx, double x, double z, double* height) {
 	struct vector3 from = { x, 0, z };
 	//射线方向
 	static const struct vector3 direction = { 0, 1, 0 };
-	
+
 	int triangle[3] = { 0, 0, 0 };
 	int i;
 	for ( i = 1; i < node->size - 1; i++ ) {

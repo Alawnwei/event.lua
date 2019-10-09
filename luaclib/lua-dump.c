@@ -47,7 +47,7 @@ buffer_init(struct write_buffer* buffer) {
 	buffer->offset = 0;
 }
 
-static inline void 
+static inline void
 buffer_reservce(struct write_buffer* buffer, size_t len) {
 	if (buffer->offset + len <= buffer->size) {
 		return;
@@ -65,26 +65,26 @@ buffer_reservce(struct write_buffer* buffer, size_t len) {
 	buffer->ptr = nptr;
 }
 
-static inline void 
+static inline void
 buffer_addchar(struct write_buffer* buffer, char c) {
 	buffer_reservce(buffer, 1);
 	buffer->ptr[buffer->offset++] = c;
 }
 
-static inline void 
-buffer_addlstring(struct write_buffer* buffer, const char* str,size_t len) {
+static inline void
+buffer_addlstring(struct write_buffer* buffer, const char* str, size_t len) {
 	buffer_reservce(buffer, len);
 	memcpy(buffer->ptr + buffer->offset, str, len);
 	buffer->offset += len;
 }
 
-static inline void 
+static inline void
 buffer_addstring(struct write_buffer* buffer, const char* str) {
 	int len = strlen(str);
-	buffer_addlstring(buffer,str,len);
+	buffer_addlstring(buffer, str, len);
 }
 
-static inline void 
+static inline void
 buffer_release(struct write_buffer* buffer) {
 	if (buffer->ptr != buffer->init)
 		free(buffer->ptr);
@@ -113,17 +113,17 @@ do{\
 #define table_begin(buffer) buffer_addstring(buffer, "{\n")
 #endif
 
-static inline void 
+static inline void
 array_init(struct array_context* array) {
 	array->size = SLOT_SIZE;
 	array->offset = 0;
 	array->slots = array->init;
 }
 
-static inline void 
+static inline void
 array_release(struct array_context* array) {
 	int i;
-	for (i = 0; i < array->offset;i++) {
+	for (i = 0; i < array->offset; i++) {
 		struct array_kv* kv = array->slots[i];
 		buffer_release(kv->k);
 		buffer_release(kv->v);
@@ -136,7 +136,7 @@ array_release(struct array_context* array) {
 		free(array->slots);
 }
 
-static inline void 
+static inline void
 array_append(struct array_context* array, struct write_buffer* k, struct write_buffer* v) {
 	if (array->offset == array->size) {
 		int nsize = array->size * 2;
@@ -153,14 +153,14 @@ array_append(struct array_context* array, struct write_buffer* k, struct write_b
 	array->slots[array->offset++] = kv;
 }
 
-static inline int 
+static inline int
 array_compare(const void* a, const void* b) {
 	struct array_kv* l = *(struct array_kv**)a;
 	struct array_kv* r = *(struct array_kv**)b;
 	return strcmp(l->k->ptr, r->k->ptr);
 }
 
-static inline void 
+static inline void
 array_sort(struct array_context* array) {
 	qsort(array->slots, array->offset, sizeof(struct array_kv*), array_compare);
 }
@@ -169,12 +169,12 @@ void pack_table(lua_State* L, struct write_buffer* buffer, int index, int depth)
 void pack_table_order(lua_State* L, struct write_buffer* buffer, int index, int depth);
 
 static inline void
-append_string(lua_State* L, struct write_buffer* buffer,const char* str,size_t size) {
+append_string(lua_State* L, struct write_buffer* buffer, const char* str, size_t size) {
 	buffer_addchar(buffer, '\"');
 	size_t i;
-	for(i=0;i<size;i++) {
+	for (i = 0; i < size; i++) {
 		char ch = str[i];
-		switch(ch) {
+		switch (ch) {
 			case '\'':
 			case '\"':
 			case '\\':
@@ -185,22 +185,22 @@ append_string(lua_State* L, struct write_buffer* buffer,const char* str,size_t s
 			}
 			case '\r':
 			{
-				buffer_addlstring(buffer, "\\r",2);
+				buffer_addlstring(buffer, "\\r", 2);
 				break;
 			}
 			case '\n':
 			{
-				buffer_addlstring(buffer, "\\n",2);
+				buffer_addlstring(buffer, "\\n", 2);
 				break;
 			}
 			case '\t':
 			{
-				buffer_addlstring(buffer, "\\t",2);
+				buffer_addlstring(buffer, "\\t", 2);
 				break;
 			}
 			case '\0':
 			{
-				buffer_addlstring(buffer, "\\0",2);
+				buffer_addlstring(buffer, "\\0", 2);
 				break;
 			}
 			default:
@@ -218,20 +218,19 @@ static inline void
 append_number(lua_State* L, struct write_buffer* buffer, int index) {
 	char str[32];
 	size_t len;
-	
-	if (lua_isinteger(L,index)) {
+
+	if (lua_isinteger(L, index)) {
 		lua_Integer i = lua_tointeger(L, index);
 		int32_t i32 = (int32_t)i;
 		char* end = NULL;
 		if ((lua_Integer)i32 == i) {
-			end = i32toa_fast(i32,str);
+			end = i32toa_fast(i32, str);
 		} else {
-			end = i64toa_fast(i,str);
-		}	
+			end = i64toa_fast(i, str);
+		}
 		*end = 0;
 		len = end - str;
-	}
-	else {
+	} else {
 		lua_Number n = lua_tonumber(L, index);
 		dtoa_fast(n, str);
 		len = strlen(str);
@@ -242,15 +241,14 @@ append_number(lua_State* L, struct write_buffer* buffer, int index) {
 void
 pack_key(lua_State* L, struct write_buffer* buffer, int index, int depth) {
 	int type = lua_type(L, index);
-	switch (type)
-	{
+	switch (type) {
 		case LUA_TBOOLEAN:
 		{
-			int b = lua_toboolean(L,index);
+			int b = lua_toboolean(L, index);
 			if (b) {
-				buffer_addstring(buffer,"true");
+				buffer_addstring(buffer, "true");
 			} else {
-				buffer_addstring(buffer,"false");
+				buffer_addstring(buffer, "false");
 			}
 			break;
 		}
@@ -269,26 +267,26 @@ pack_key(lua_State* L, struct write_buffer* buffer, int index, int depth) {
 		case LUA_TUSERDATA:
 		case LUA_TLIGHTUSERDATA:
 		{
-			const void* pointer = lua_topointer(L,index);
-			char str[64] = {0};
-			snprintf(str,64,"<userdata:0x%x>",(uint32_t)(uintptr_t)pointer);
-			buffer_addstring(buffer,str);
+			const void* pointer = lua_topointer(L, index);
+			char str[64] = { 0 };
+			snprintf(str, 64, "<userdata:0x%x>", (uint32_t)(uintptr_t)pointer);
+			buffer_addstring(buffer, str);
 			break;
 		}
 		case LUA_TFUNCTION:
 		{
-			const void* pointer = lua_topointer(L,index);
-			char str[64] = {0};
-			snprintf(str,64,"<function:0x%x>",(uint32_t)(uintptr_t)pointer);
-			buffer_addstring(buffer,str);
+			const void* pointer = lua_topointer(L, index);
+			char str[64] = { 0 };
+			snprintf(str, 64, "<function:0x%x>", (uint32_t)(uintptr_t)pointer);
+			buffer_addstring(buffer, str);
 			break;
 		}
 		case LUA_TTHREAD:
 		{
-			const void* pointer = lua_topointer(L,index);
-			char str[64] = {0};
-			snprintf(str,64,"<thread:0x%x>",(uint32_t)(uintptr_t)pointer);
-			buffer_addstring(buffer,str);
+			const void* pointer = lua_topointer(L, index);
+			char str[64] = { 0 };
+			snprintf(str, 64, "<thread:0x%x>", (uint32_t)(uintptr_t)pointer);
+			buffer_addstring(buffer, str);
 		}
 		default:
 			pack_error(L, buffer, "key not support type %s", lua_typename(L, type));
@@ -311,12 +309,12 @@ pack_value(lua_State* L, struct write_buffer* buffer, int index, int depth, int 
 		}
 		case LUA_TBOOLEAN:
 		{
-			 int val = lua_toboolean(L, index);
-			 if (val)
-				 buffer_addstring(buffer, "true");
-			 else
-				 buffer_addstring(buffer, "false");
-			 break;
+			int val = lua_toboolean(L, index);
+			if (val)
+				buffer_addstring(buffer, "true");
+			else
+				buffer_addstring(buffer, "false");
+			break;
 		}
 		case LUA_TSTRING:
 		{
@@ -327,42 +325,41 @@ pack_value(lua_State* L, struct write_buffer* buffer, int index, int depth, int 
 		}
 		case LUA_TTABLE:
 		{
-		   if (index < 0) {
-			   index = lua_gettop(L) + index + 1;
-		   }
+			if (index < 0) {
+				index = lua_gettop(L) + index + 1;
+			}
 
-		   if (sort) {
-			   pack_table_order(L, buffer, index, ++depth);
-		   }
-		   else {
-			   pack_table(L, buffer, index, ++depth);
-		   }
+			if (sort) {
+				pack_table_order(L, buffer, index, ++depth);
+			} else {
+				pack_table(L, buffer, index, ++depth);
+			}
 
-		   break;
+			break;
 		}
 		case LUA_TUSERDATA:
 		case LUA_TLIGHTUSERDATA:
 		{
-			const void* pointer = lua_topointer(L,index);
-			char str[64] = {0};
-			snprintf(str,64,"<userdata:0x%x>",(uint32_t)(uintptr_t)pointer);
-			buffer_addstring(buffer,str);
+			const void* pointer = lua_topointer(L, index);
+			char str[64] = { 0 };
+			snprintf(str, 64, "<userdata:0x%x>", (uint32_t)(uintptr_t)pointer);
+			buffer_addstring(buffer, str);
 			break;
 		}
 		case LUA_TFUNCTION:
 		{
-			const void* pointer = lua_topointer(L,index);
-			char str[64] = {0};
-			snprintf(str,64,"<function:0x%x>",(uint32_t)(uintptr_t)pointer);
-			buffer_addstring(buffer,str);
+			const void* pointer = lua_topointer(L, index);
+			char str[64] = { 0 };
+			snprintf(str, 64, "<function:0x%x>", (uint32_t)(uintptr_t)pointer);
+			buffer_addstring(buffer, str);
 			break;
 		}
 		case LUA_TTHREAD:
 		{
-			const void* pointer = lua_topointer(L,index);
-			char str[64] = {0};
-			snprintf(str,64,"<thread:0x%x>",(uint32_t)(uintptr_t)pointer);
-			buffer_addstring(buffer,str);
+			const void* pointer = lua_topointer(L, index);
+			char str[64] = { 0 };
+			snprintf(str, 64, "<thread:0x%x>", (uint32_t)(uintptr_t)pointer);
+			buffer_addstring(buffer, str);
 		}
 		default:
 			pack_error(L, buffer, "value not support type %s", lua_typename(L, type));
@@ -438,7 +435,7 @@ pack_table_order(lua_State* L, struct write_buffer* buffer, int index, int depth
 		if (lua_type(L, -2) == LUA_TNUMBER) {
 			lua_Number n = lua_tonumber(L, -2);
 			lua_Integer i = lua_tointeger(L, -2);
-			if (n == (lua_Number)i){
+			if (n == (lua_Number)i) {
 				if (i > 0 && i <= array_size) {
 					lua_pop(L, 1);
 					continue;
@@ -497,8 +494,8 @@ pack(lua_State* L) {
 
 	buffer_release(&buffer);
 
-	lua_pushlightuserdata(L,data);
-	lua_pushinteger(L,buffer.offset);
+	lua_pushlightuserdata(L, data);
+	lua_pushinteger(L, buffer.offset);
 	return 2;
 }
 
@@ -669,11 +666,10 @@ eat_number(lua_State* L, struct parser_context *parser) {
 	}
 
 	parser->ptr = end;
-	
+
 	if ((lua_Number)integer == number) {
 		lua_pushinteger(L, integer);
-	}
-	else {
+	} else {
 		lua_pushnumber(L, number);
 	}
 	eat_space(parser);
@@ -685,14 +681,12 @@ unpack_table(lua_State* L, struct parser_context *parser, int depth);
 void
 unpack_key(lua_State* L, struct parser_context *parser, int i, int depth) {
 	char ch = *parser->ptr;
-	switch (ch)
-	{
+	switch (ch) {
 		case '[':
 		{
 			eat(L, parser, 1);
 			ch = *parser->ptr;
-			switch (ch)
-			{
+			switch (ch) {
 				case '\'':
 				case '\"':
 				{
@@ -717,7 +711,7 @@ unpack_key(lua_State* L, struct parser_context *parser, int i, int depth) {
 				}
 				default:
 				{
-				   unpack_error(L, parser, "unknown char:%c", ch);
+					unpack_error(L, parser, "unknown char:%c", ch);
 				}
 			}
 			eat(L, parser, 1);
@@ -755,48 +749,44 @@ unpack_key(lua_State* L, struct parser_context *parser, int i, int depth) {
 		}
 		default:
 		{
-		   int index = 0;
-		   char ch = *parser->ptr;
-		   while (!eof(parser)) {
-			   if ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'z') || ch == '_') {
-				   reserve_eat(parser, index, ch);
-				   index++;
-				   eat(L, parser, 1);
-				   ch = *parser->ptr;
-			   }
-			   else {
-				   eat_space(parser);
-				   break;
-			   }
-		   }
+			int index = 0;
+			char ch = *parser->ptr;
+			while (!eof(parser)) {
+				if ((ch >= '0' && ch <= '9') || (ch >= 'A' && ch <= 'z') || ch == '_') {
+					reserve_eat(parser, index, ch);
+					index++;
+					eat(L, parser, 1);
+					ch = *parser->ptr;
+				} else {
+					eat_space(parser);
+					break;
+				}
+			}
 
-		   int i;
-		   for (i = 0; i < 3; i++) {
-			   const char* kw = KEY_WORD[i];
-			   const int kws = KEY_WORD_SIZE[i];
-			   if (kws == index && strncmp(kw, parser->reserve, index) == 0) {
-				   if (expect(parser, ',') || expect(parser, '}')) {
-					   if (i == 0) {
-						   lua_pushnil(L);
-					   }
-					   else if (i == 1) {
-						   lua_pushboolean(L, 1);
-					   }
-					   else {
-						   lua_pushboolean(L, 0);
-					   }
-					   return;
-				   }
-				   else {
-					   unpack_error(L, parser, "expect ,or} after %s",kw);
-				   }
-			   }
-		   }
-		   if (!expect(parser, '=')) {
-			   unpack_error(L, parser, "expect =,unknown char:%c",*parser->ptr);
-		   }
-		   lua_pushlstring(L, parser->reserve, index);
-		   return;
+			int i;
+			for (i = 0; i < 3; i++) {
+				const char* kw = KEY_WORD[i];
+				const int kws = KEY_WORD_SIZE[i];
+				if (kws == index && strncmp(kw, parser->reserve, index) == 0) {
+					if (expect(parser, ',') || expect(parser, '}')) {
+						if (i == 0) {
+							lua_pushnil(L);
+						} else if (i == 1) {
+							lua_pushboolean(L, 1);
+						} else {
+							lua_pushboolean(L, 0);
+						}
+						return;
+					} else {
+						unpack_error(L, parser, "expect ,or} after %s", kw);
+					}
+				}
+			}
+			if (!expect(parser, '=')) {
+				unpack_error(L, parser, "expect =,unknown char:%c", *parser->ptr);
+			}
+			lua_pushlstring(L, parser->reserve, index);
+			return;
 		}
 	}
 	unpack_error(L, parser, "unknown char:%c", *parser->ptr);
@@ -820,8 +810,7 @@ unpack_value(lua_State* L, struct parser_context *parser, int depth) {
 				eat(L, parser, 2);
 				eat_pure_string(L, parser);
 				return;
-			}
-			else {
+			} else {
 				break;
 			}
 		}
@@ -848,8 +837,7 @@ unpack_value(lua_State* L, struct parser_context *parser, int depth) {
 				eat(L, parser, 3);
 				eat_space(parser);
 				return;
-			}
-			else {
+			} else {
 				break;
 			}
 		}
@@ -860,8 +848,7 @@ unpack_value(lua_State* L, struct parser_context *parser, int depth) {
 				eat(L, parser, 4);
 				eat_space(parser);
 				return;
-			}
-			else {
+			} else {
 				break;
 			}
 		}
@@ -872,8 +859,7 @@ unpack_value(lua_State* L, struct parser_context *parser, int depth) {
 				eat(L, parser, 5);
 				eat_space(parser);
 				return;
-			}
-			else {
+			} else {
 				break;
 			}
 		}
@@ -909,8 +895,7 @@ unpack_table(lua_State* L, struct parser_context *parser, int depth) {
 			eat(L, parser, 1);
 			eat_space(parser);
 			continue;
-		}
-		else {
+		} else {
 			unpack_key(L, parser, i, depth);
 		}
 
@@ -940,13 +925,13 @@ int
 unpack(lua_State* L) {
 	size_t size;
 	const char* str;
-	if (lua_type(L,1) == LUA_TLIGHTUSERDATA) {
-		str = lua_touserdata(L,1);
-		size = lua_tointeger(L,2);
+	if (lua_type(L, 1) == LUA_TLIGHTUSERDATA) {
+		str = lua_touserdata(L, 1);
+		size = lua_tointeger(L, 2);
 	} else {
 		str = luaL_checklstring(L, 1, &size);
 	}
-	
+
 	struct parser_context parser;
 	parser_init(&parser, str, size);
 
@@ -974,7 +959,7 @@ unpack(lua_State* L) {
 }
 
 int
-luaopen_dump_core(lua_State* L){
+luaopen_dump_core(lua_State* L) {
 	luaL_Reg l[] = {
 		{ "pack", pack },
 		{ "tostring", tostring },
@@ -982,6 +967,6 @@ luaopen_dump_core(lua_State* L){
 		{ "unpack", unpack },
 		{ NULL, NULL },
 	};
-	luaL_newlib(L,l);
+	luaL_newlib(L, l);
 	return 1;
 }

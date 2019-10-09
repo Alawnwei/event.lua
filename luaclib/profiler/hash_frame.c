@@ -1,7 +1,7 @@
 #include "profiler.h"
 #include <assert.h>
 
-void 
+void
 hash_frame_set(hash_frame_t* self, const char* name, frame_t* frame) {
 	int ok;
 	khiter_t k = kh_put(frame, self, strdup(name), &ok);
@@ -9,7 +9,7 @@ hash_frame_set(hash_frame_t* self, const char* name, frame_t* frame) {
 	kh_value(self, k) = frame;
 }
 
-void 
+void
 hash_frame_del(hash_frame_t* self, const char* name) {
 	khiter_t k = kh_get(frame, self, name);
 	assert(k != kh_end(self));
@@ -25,7 +25,7 @@ hash_frame_find(hash_frame_t* self, const char* name) {
 	return kh_value(self, k);
 }
 
-void 
+void
 hash_frame_free(hash_frame_t *self) {
 	const char* name;
 	frame_t* fm;

@@ -79,7 +79,7 @@ stop_profiler() {
 }
 
 void
-traceback(lua_State* from,lua_State* L,int* argc) {
+traceback(lua_State* from, lua_State* L, int* argc) {
 	int level = 0;
 	lua_Debug ar;
 	while (lua_getstack(from, level++, &ar)) {
@@ -88,46 +88,46 @@ traceback(lua_State* from,lua_State* L,int* argc) {
 		}
 		if (ar.currentline >= 0) {
 			if (*ar.namewhat != '\0')
-				lua_pushfstring(L, "%s:%d@%s '%s:%d'",ar.short_src,ar.currentline, ar.namewhat, ar.name, ar.linedefined);  /* use it */
+				lua_pushfstring(L, "%s:%d@%s '%s:%d'", ar.short_src, ar.currentline, ar.namewhat, ar.name, ar.linedefined);  /* use it */
 			else if (*ar.what == 'm')
-				lua_pushfstring(L, "%s:%d@main chunk",ar.short_src,ar.currentline);
+				lua_pushfstring(L, "%s:%d@main chunk", ar.short_src, ar.currentline);
 			else if (*ar.what != 'C')
-				lua_pushfstring(L, "%s:%d@function <%s:%d>",ar.short_src,ar.currentline, ar.short_src, ar.linedefined);
+				lua_pushfstring(L, "%s:%d@function <%s:%d>", ar.short_src, ar.currentline, ar.short_src, ar.linedefined);
 			else
-				lua_pushfstring(L, "%s:%d@?",ar.short_src,ar.currentline);
+				lua_pushfstring(L, "%s:%d@?", ar.short_src, ar.currentline);
 		} else {
 			if (*ar.namewhat != '\0')
-				lua_pushfstring(L, "%s@%s '%s:%d'",ar.short_src, ar.namewhat, ar.name,ar.linedefined);  /* use it */
+				lua_pushfstring(L, "%s@%s '%s:%d'", ar.short_src, ar.namewhat, ar.name, ar.linedefined);  /* use it */
 			else if (*ar.what == 'm')
-				lua_pushfstring(L, "%s@main chunk",ar.short_src);
+				lua_pushfstring(L, "%s@main chunk", ar.short_src);
 			else if (*ar.what != 'C')
-				lua_pushfstring(L, "%s@function <%s:%d>",ar.short_src, ar.short_src, ar.linedefined);
-			else 
-				lua_pushfstring(L, "%s@?",ar.short_src);
+				lua_pushfstring(L, "%s@function <%s:%d>", ar.short_src, ar.short_src, ar.linedefined);
+			else
+				lua_pushfstring(L, "%s@?", ar.short_src);
 		}
 		(*argc) += 1;
 	}
 }
 
-static void 
-hook_func (lua_State *L, lua_Debug *ar) {
+static void
+hook_func(lua_State *L, lua_Debug *ar) {
 	lua_sethook(L, NULL, 0, 0);
 	context_t* ctx = pthread_getspecific(THR_KEY);
 	if (ctx == NULL)
 		return;
 
 	lua_getglobal(ctx->report, "collect");
-	
+
 	int argc = 0;
 
 	co_node_t* cursor = ctx->tail;
-	while(cursor) {
-		traceback(cursor->L,ctx->report,&argc);
+	while (cursor) {
+		traceback(cursor->L, ctx->report, &argc);
 		cursor = cursor->prev;
 	}
 
-	if (lua_pcall(ctx->report,argc,0,0) != LUA_OK)  {
-		fprintf(stderr,"%s\n",lua_tostring(ctx->report,-1));
+	if (lua_pcall(ctx->report, argc, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(ctx->report, -1));
 	}
 	start_profiler();
 }
@@ -136,11 +136,11 @@ static void
 signal_profiler(int sig, siginfo_t* sinfo, void* ucontext) {
 	context_t* ctx = pthread_getspecific(THR_KEY);
 	stop_profiler();
-	lua_sethook(ctx->tail->L,hook_func, LUA_MASKCOUNT, 1);
+	lua_sethook(ctx->tail->L, hook_func, LUA_MASKCOUNT, 1);
 }
 
 static inline co_node_t*
-link_co(context_t* ctx,lua_State* L) {
+link_co(context_t* ctx, lua_State* L) {
 	co_node_t* node = NULL;
 	if (ctx->freelist) {
 		node = ctx->freelist;
@@ -148,7 +148,7 @@ link_co(context_t* ctx,lua_State* L) {
 	} else {
 		node = malloc(sizeof(co_node_t));
 	}
-	memset(node,0,sizeof(co_node_t));
+	memset(node, 0, sizeof(co_node_t));
 
 	node->L = L;
 	node->prev = NULL;
@@ -167,7 +167,7 @@ link_co(context_t* ctx,lua_State* L) {
 }
 
 static inline void
-unlink_co(context_t* ctx,co_node_t* node) {
+unlink_co(context_t* ctx, co_node_t* node) {
 	assert(ctx->tail == node);
 	ctx->tail = ctx->tail->prev;
 	ctx->tail->next = NULL;
@@ -180,14 +180,14 @@ unlink_co(context_t* ctx,co_node_t* node) {
 
 static int
 lresume(lua_State *L) {
-	context_t* ctx = lua_touserdata(L,lua_upvalueindex(1));
-	lua_State* co = lua_tothread(L,1);
-	
-	co_node_t* node = link_co(ctx,co);
+	context_t* ctx = lua_touserdata(L, lua_upvalueindex(1));
+	lua_State* co = lua_tothread(L, 1);
+
+	co_node_t* node = link_co(ctx, co);
 
 	lua_CFunction co_resume = lua_tocfunction(L, lua_upvalueindex(2));
 	int status = co_resume(L);
-	unlink_co(ctx,node);
+	unlink_co(ctx, node);
 	return status;
 }
 
@@ -202,29 +202,29 @@ lstop(lua_State *L) {
 	lua_setfield(L, -2, "resume");
 	lua_pop(L, 1);
 
-	context_t* ctx = lua_touserdata(L,lua_upvalueindex(1));
+	context_t* ctx = lua_touserdata(L, lua_upvalueindex(1));
 
 	lua_State* report = ctx->report;
 	ctx->report = NULL;
 
 	lua_getglobal(report, "collect_over");
-	lua_pushstring(report,ctx->file);
-	int status = lua_pcall(report,1,0,0);
-	if (status != LUA_OK)  {
+	lua_pushstring(report, ctx->file);
+	int status = lua_pcall(report, 1, 0, 0);
+	if (status != LUA_OK) {
 		lua_close(report);
-		luaL_error(L,"stop profiler report failed:%s",lua_tostring(report,-1));
+		luaL_error(L, "stop profiler report failed:%s", lua_tostring(report, -1));
 	}
 	lua_close(report);
 
 	co_node_t* cursor = ctx->head;
-	while(cursor) {
+	while (cursor) {
 		co_node_t* tmp = cursor;
 		cursor = cursor->next;
 		free(tmp);
 	}
 
 	cursor = ctx->freelist;
-	while(cursor) {
+	while (cursor) {
 		co_node_t* tmp = cursor;
 		cursor = cursor->next;
 		free(tmp);
@@ -242,7 +242,7 @@ lprofiler_stack_start(lua_State *L) {
 	size_t size;
 	const char* file = lua_tolstring(L, 1, &size);
 
-	pthread_once(&THR_ONCE,&thr_key_init);
+	pthread_once(&THR_ONCE, &thr_key_init);
 
 	context_t* ctx = malloc(sizeof(*ctx));
 	ctx->file = strdup(file);
@@ -252,20 +252,20 @@ lprofiler_stack_start(lua_State *L) {
 	ctx->report = luaL_newstate();
 	luaL_openlibs(ctx->report);
 
-	int status = luaL_loadfile(ctx->report,"lualib/profiler_collect.lua");
-	if (status != LUA_OK)  {
-		luaL_error(L,"load profiler report failed:%s",lua_tostring(ctx->report,-1));
+	int status = luaL_loadfile(ctx->report, "lualib/profiler_collect.lua");
+	if (status != LUA_OK) {
+		luaL_error(L, "load profiler report failed:%s", lua_tostring(ctx->report, -1));
 	}
 
-	status = lua_pcall(ctx->report,0,0,0);
-	if (status != LUA_OK)  {
-		luaL_error(L,"init profiler report failed:%s",lua_tostring(ctx->report,-1));
+	status = lua_pcall(ctx->report, 0, 0, 0);
+	if (status != LUA_OK) {
+		luaL_error(L, "init profiler report failed:%s", lua_tostring(ctx->report, -1));
 	}
 
 	lua_getglobal(ctx->report, "collect_start");
-	status = lua_pcall(ctx->report,0,0,0);
-	if (status != LUA_OK)  {
-		luaL_error(L,"start profiler report failed:%s",lua_tostring(ctx->report,-1));
+	status = lua_pcall(ctx->report, 0, 0, 0);
+	if (status != LUA_OK) {
+		luaL_error(L, "start profiler report failed:%s", lua_tostring(ctx->report, -1));
 	}
 
 	pthread_setspecific(THR_KEY, (void *)ctx);
@@ -282,7 +282,7 @@ lprofiler_stack_start(lua_State *L) {
 	lua_pushcfunction(L, co_resume);
 	lua_pushcclosure(L, lstop, 2);
 
-	link_co(ctx,L);
+	link_co(ctx, L);
 
 	start_profiler();
 

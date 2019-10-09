@@ -36,44 +36,44 @@ typedef struct callback_param {
 	int leave_stack;
 } param_t;
 
-void 
+void
 entity_enter_cb(int self, int other, void* ud) {
 	param_t* param = ud;
 	if (other == param->self) {
 		return;
 	}
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->enter_stack,param->enter_index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->enter_stack, param->enter_index++);
 }
 
-void 
+void
 entity_leave_cb(int self, int other, void* ud) {
 	param_t* param = ud;
 	if (other == param->self) {
 		return;
 	}
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->leave_stack,param->leave_index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->leave_stack, param->leave_index++);
 }
 
-void 
+void
 trigger_enter_cb(int self, int other, void* ud) {
 	param_t* param = ud;
 	if (other == param->self) {
 		return;
 	}
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->enter_stack,param->enter_index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->enter_stack, param->enter_index++);
 }
 
-void 
+void
 trigger_leave_cb(int self, int other, void* ud) {
 	param_t* param = ud;
 	if (other == param->self) {
 		return;
 	}
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->leave_stack,param->leave_index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->leave_stack, param->leave_index++);
 }
 
 static int
@@ -210,7 +210,7 @@ lcreate_object(lua_State* L) {
 	lobject->aoi = laoi->aoi;
 	lobject->cell = laoi->cell;
 
-	if (luaL_newmetatable(L,"meta_link_aoi_object")) {
+	if (luaL_newmetatable(L, "meta_link_aoi_object")) {
 		const luaL_Reg meta[] = {
 			{ "create_entity", lcreate_entity },
 			{ "remove_entity", lremove_entity },
@@ -220,16 +220,16 @@ lcreate_object(lua_State* L) {
 			{ "move_trigger", lmove_trigger },
 			{ NULL, NULL },
 		};
-		luaL_newlib(L,meta);
+		luaL_newlib(L, meta);
 		lua_setfield(L, -2, "__index");
 
-		lua_pushcfunction(L,lrelease_object);
+		lua_pushcfunction(L, lrelease_object);
 		lua_setfield(L, -2, "__gc");
 	}
 
- 	lua_setmetatable(L, -2);
+	lua_setmetatable(L, -2);
 
- 	return 1;
+	return 1;
 }
 
 static int
@@ -259,7 +259,7 @@ lcreate(lua_State* L) {
 		{ "create_object", lcreate_object },
 		{ NULL, NULL },
 	};
-	luaL_newlib(L,l);
+	luaL_newlib(L, l);
 
 	lua_setfield(L, -2, "__index");
 
@@ -269,11 +269,11 @@ lcreate(lua_State* L) {
 }
 
 int
-luaopen_linkaoi_core(lua_State* L){
+luaopen_linkaoi_core(lua_State* L) {
 	luaL_Reg l[] = {
 		{ "create", lcreate },
 		{ NULL, NULL },
 	};
-	luaL_newlib(L,l);
+	luaL_newlib(L, l);
 	return 1;
 }

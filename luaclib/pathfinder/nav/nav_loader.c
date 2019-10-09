@@ -1,14 +1,12 @@
 ﻿#include "nav.h"
 
-struct nav_border_searcher
-{
+struct nav_border_searcher {
 	struct nav_border_searcher* next;
 	int index;
 	int id;
 };
 
-struct vertex_sort_info
-{
+struct vertex_sort_info {
 	struct nav_mesh_context* ctx;
 	int index;
 	struct vector3 center;
@@ -19,9 +17,9 @@ poly_area(struct nav_mesh_context* ctx, int size, int* poly) {
 	assert(size >= 3);
 	double area = 0.0f;
 	int i;
-	for ( i = 0; i < size;i++ ) {
+	for (i = 0; i < size; i++) {
 		int current = i;
-		int next = ( i + 1 ) % size;
+		int next = (i + 1) % size;
 
 		struct vector3* pt0 = &ctx->vertices[poly[current]];
 		struct vector3* pt1 = &ctx->vertices[poly[next]];
@@ -32,8 +30,8 @@ poly_area(struct nav_mesh_context* ctx, int size, int* poly) {
 
 static int
 node_cmp(mh_elt_t * left, mh_elt_t * right) {
-	struct nav_node *l = ( struct nav_node * ) left;
-	struct nav_node *r = ( struct nav_node * ) right;
+	struct nav_node *l = (struct nav_node *) left;
+	struct nav_node *r = (struct nav_node *) right;
 #ifdef MINHEAP_USE_LIBEVENT
 	return l->F > r->F;
 #else
@@ -43,8 +41,8 @@ node_cmp(mh_elt_t * left, mh_elt_t * right) {
 
 int
 angle_cmp(const void * left, const void * right) {
-	struct vertex_sort_info *l = ( struct vertex_sort_info* )left;
-	struct vertex_sort_info *r = ( struct vertex_sort_info* )right;
+	struct vertex_sort_info *l = (struct vertex_sort_info*)left;
+	struct vertex_sort_info *r = (struct vertex_sort_info*)right;
 
 	struct vector3 pt0, pt1;
 	vector3_copy(&pt0, &l->ctx->vertices[l->index]);
@@ -56,21 +54,21 @@ angle_cmp(const void * left, const void * right) {
 
 	static double pi = 3.14159265358979323846;
 	double angle0 = atan2(vt0.z, vt0.x) * 180 / pi;
-	if ( angle0 < 0 ) {
+	if (angle0 < 0) {
 		angle0 += 360;
 	}
 	double angle1 = atan2(vt1.z, vt1.x) * 180 / pi;
-	if ( angle1 < 0 ) {
+	if (angle1 < 0) {
 		angle1 += 360;
 	}
 	return angle0 > angle1;
 }
 
 struct nav_border*
-add_border(struct nav_mesh_context* mesh_ctx, int a, int b) {
-	if ( mesh_ctx->border_offset + 1 >= mesh_ctx->border_size ) {
+	add_border(struct nav_mesh_context* mesh_ctx, int a, int b) {
+	if (mesh_ctx->border_offset + 1 >= mesh_ctx->border_size) {
 		mesh_ctx->border_size *= 2;
-		mesh_ctx->borders = ( struct nav_border* )realloc(mesh_ctx->borders, sizeof( struct nav_border ) * mesh_ctx->border_size);
+		mesh_ctx->borders = (struct nav_border*)realloc(mesh_ctx->borders, sizeof(struct nav_border) * mesh_ctx->border_size);
 	}
 
 	struct nav_border * border = &mesh_ctx->borders[mesh_ctx->border_offset];
@@ -80,9 +78,9 @@ add_border(struct nav_mesh_context* mesh_ctx, int a, int b) {
 	border->node[0] = -1;
 	border->node[1] = -1;
 	border->opposite = -1;
-	border->center.x = ( mesh_ctx->vertices[a].x + mesh_ctx->vertices[b].x );
-	border->center.y = ( mesh_ctx->vertices[a].y + mesh_ctx->vertices[b].y );
-	border->center.z = ( mesh_ctx->vertices[a].z + mesh_ctx->vertices[b].z );
+	border->center.x = (mesh_ctx->vertices[a].x + mesh_ctx->vertices[b].x);
+	border->center.y = (mesh_ctx->vertices[a].y + mesh_ctx->vertices[b].y);
+	border->center.z = (mesh_ctx->vertices[a].z + mesh_ctx->vertices[b].z);
 
 	mesh_ctx->border_offset++;
 
@@ -90,18 +88,18 @@ add_border(struct nav_mesh_context* mesh_ctx, int a, int b) {
 }
 
 struct nav_border*
-search_border(struct nav_mesh_context* ctx, struct nav_border_searcher** searcher, int begin, int end) {
-	if ( begin >= ctx->vertices_size || end >= ctx->vertices_size )
+	search_border(struct nav_mesh_context* ctx, struct nav_border_searcher** searcher, int begin, int end) {
+	if (begin >= ctx->vertices_size || end >= ctx->vertices_size)
 		assert(0);
 
 	struct nav_border_searcher* node = searcher[begin];
-	while ( node != NULL ) {
-		if ( node->index == end )
+	while (node != NULL) {
+		if (node->index == end)
 			return get_border(ctx, node->id);
 		node = node->next;
 	}
 
-	node = ( struct nav_border_searcher* )malloc(sizeof( *node ));
+	node = (struct nav_border_searcher*)malloc(sizeof(*node));
 	struct nav_border* border = add_border(ctx, begin, end);
 	node->id = border->id;
 	node->index = end;
@@ -113,9 +111,9 @@ search_border(struct nav_mesh_context* ctx, struct nav_border_searcher** searche
 void
 release_border_searcher(struct nav_mesh_context* ctx, struct nav_border_searcher** searcher) {
 	int i;
-	for ( i = 0; i < ctx->vertices_size; i++ ) {
+	for (i = 0; i < ctx->vertices_size; i++) {
 		struct nav_border_searcher* node = searcher[i];
-		while ( node != NULL ) {
+		while (node != NULL) {
 			struct nav_border_searcher* tmp = node;
 			node = node->next;
 			free(tmp);
@@ -126,9 +124,9 @@ release_border_searcher(struct nav_mesh_context* ctx, struct nav_border_searcher
 
 void
 border_link_node(struct nav_border* border, int id) {
-	if ( border->node[0] == -1 )
+	if (border->node[0] == -1)
 		border->node[0] = id;
-	else if ( border->node[1] == -1 )
+	else if (border->node[1] == -1)
 		border->node[1] = id;
 	else
 		assert(0);
@@ -136,17 +134,17 @@ border_link_node(struct nav_border* border, int id) {
 
 void
 vertex_sort(struct nav_mesh_context* ctx, struct nav_node* node) {
-	struct vertex_sort_info* vertex = ( struct vertex_sort_info* )malloc(sizeof( *vertex ) * node->size);
+	struct vertex_sort_info* vertex = (struct vertex_sort_info*)malloc(sizeof(*vertex) * node->size);
 	int i;
-	for ( i = 0; i < node->size; i++ ) {
+	for (i = 0; i < node->size; i++) {
 		vertex[i].ctx = ctx;
 		vertex[i].index = node->poly[i];
 		vector3_copy(&vertex[i].center, &node->center);
 	}
 
-	qsort(vertex, node->size, sizeof( struct vertex_sort_info ), angle_cmp);
+	qsort(vertex, node->size, sizeof(struct vertex_sort_info), angle_cmp);
 
-	for ( i = 0; i < node->size; i++ )
+	for (i = 0; i < node->size; i++)
 		node->poly[i] = vertex[i].index;
 
 	free(vertex);
@@ -154,18 +152,18 @@ vertex_sort(struct nav_mesh_context* ctx, struct nav_node* node) {
 
 void
 init_mesh(struct nav_mesh_context* mesh_ctx) {
-	memset(mesh_ctx, 0, sizeof( *mesh_ctx ));
+	memset(mesh_ctx, 0, sizeof(*mesh_ctx));
 
 	mesh_ctx->mask_ctx.size = 8;
 	mesh_ctx->mask_ctx.mask = (int*)malloc(sizeof(int)* mesh_ctx->mask_ctx.size);
 	int i;
-	for ( i = 0; i < mesh_ctx->mask_ctx.size; i++ )
+	for (i = 0; i < mesh_ctx->mask_ctx.size; i++)
 		set_mask(&mesh_ctx->mask_ctx, i, 1);
 	set_mask(&mesh_ctx->mask_ctx, 0, 1);
 
 	mesh_ctx->result.size = 8;
 	mesh_ctx->result.offset = 0;
-	mesh_ctx->result.wp = ( struct vector3* )malloc(sizeof( struct vector3 )*mesh_ctx->result.size);
+	mesh_ctx->result.wp = (struct vector3*)malloc(sizeof(struct vector3)*mesh_ctx->result.size);
 
 	mh_ctor(&mesh_ctx->openlist, node_cmp);
 
@@ -173,81 +171,81 @@ init_mesh(struct nav_mesh_context* mesh_ctx) {
 }
 
 struct nav_mesh_context*
-load_mesh(double** v, int vertices_size, int** p, int node_size) {
-	struct nav_mesh_context* mesh_ctx = ( struct nav_mesh_context* )malloc(sizeof( *mesh_ctx ));
+	load_mesh(double** v, int vertices_size, int** p, int node_size) {
+	struct nav_mesh_context* mesh_ctx = (struct nav_mesh_context*)malloc(sizeof(*mesh_ctx));
 	init_mesh(mesh_ctx);
 
 	int i, j, k;
 
 	mesh_ctx->vertices_size = vertices_size;
-	mesh_ctx->vertices = ( struct vector3 * )malloc(sizeof( struct vector3 ) * mesh_ctx->vertices_size);
-	memset(mesh_ctx->vertices, 0, sizeof( struct vector3 ) * mesh_ctx->vertices_size);
+	mesh_ctx->vertices = (struct vector3 *)malloc(sizeof(struct vector3) * mesh_ctx->vertices_size);
+	memset(mesh_ctx->vertices, 0, sizeof(struct vector3) * mesh_ctx->vertices_size);
 
-	memset(&mesh_ctx->lt, 0, sizeof( struct vector3 ));
-	memset(&mesh_ctx->br, 0, sizeof( struct vector3 ));
+	memset(&mesh_ctx->lt, 0, sizeof(struct vector3));
+	memset(&mesh_ctx->br, 0, sizeof(struct vector3));
 
 	//初始化顶点信息，并找到左上和右下的坐标
-	for ( i = 0; i < vertices_size; i++ ) {
+	for (i = 0; i < vertices_size; i++) {
 		mesh_ctx->vertices[i].x = v[i][0];
 		mesh_ctx->vertices[i].y = v[i][1];
 		mesh_ctx->vertices[i].z = v[i][2];
 
-		if ( mesh_ctx->lt.x == 0 )
+		if (mesh_ctx->lt.x == 0)
 			mesh_ctx->lt.x = mesh_ctx->vertices[i].x;
 		else {
-			if ( mesh_ctx->vertices[i].x < mesh_ctx->lt.x )
+			if (mesh_ctx->vertices[i].x < mesh_ctx->lt.x)
 				mesh_ctx->lt.x = mesh_ctx->vertices[i].x;
 		}
 
-		if ( mesh_ctx->lt.z == 0 )
+		if (mesh_ctx->lt.z == 0)
 			mesh_ctx->lt.z = mesh_ctx->vertices[i].z;
 		else {
-			if ( mesh_ctx->vertices[i].z < mesh_ctx->lt.z )
+			if (mesh_ctx->vertices[i].z < mesh_ctx->lt.z)
 				mesh_ctx->lt.z = mesh_ctx->vertices[i].z;
 		}
 
-		if ( mesh_ctx->br.x == 0 )
+		if (mesh_ctx->br.x == 0)
 			mesh_ctx->br.x = mesh_ctx->vertices[i].x;
 		else {
-			if ( mesh_ctx->vertices[i].x > mesh_ctx->br.x )
+			if (mesh_ctx->vertices[i].x > mesh_ctx->br.x)
 				mesh_ctx->br.x = mesh_ctx->vertices[i].x;
 		}
 
-		if ( mesh_ctx->br.z == 0 )
+		if (mesh_ctx->br.z == 0)
 			mesh_ctx->br.z = mesh_ctx->vertices[i].z;
 		else {
-			if ( mesh_ctx->vertices[i].z > mesh_ctx->br.z )
+			if (mesh_ctx->vertices[i].z > mesh_ctx->br.z)
 				mesh_ctx->br.z = mesh_ctx->vertices[i].z;
 		}
 	}
 
 	//计算出地图的宽和高
-	mesh_ctx->width = (uint32_t)( mesh_ctx->br.x - mesh_ctx->lt.x );
-	mesh_ctx->heigh = (uint32_t)( mesh_ctx->br.z - mesh_ctx->lt.z );
+	mesh_ctx->width = (uint32_t)(mesh_ctx->br.x - mesh_ctx->lt.x);
+	mesh_ctx->heigh = (uint32_t)(mesh_ctx->br.z - mesh_ctx->lt.z);
 
 	mesh_ctx->border_size = 64;
 	mesh_ctx->border_offset = 0;
-	mesh_ctx->borders = ( struct nav_border * )malloc(sizeof( struct nav_border ) * mesh_ctx->border_size);
-	memset(mesh_ctx->borders, 0, sizeof( struct nav_border ) * mesh_ctx->border_size);
+	mesh_ctx->borders = (struct nav_border *)malloc(sizeof(struct nav_border) * mesh_ctx->border_size);
+	memset(mesh_ctx->borders, 0, sizeof(struct nav_border) * mesh_ctx->border_size);
 
-	struct nav_border_searcher** border_searcher = ( struct nav_border_searcher** )malloc(sizeof( *border_searcher ) * mesh_ctx->vertices_size);
-	memset(border_searcher, 0, sizeof( *border_searcher ) * mesh_ctx->vertices_size);
+	struct nav_border_searcher** border_searcher = (struct nav_border_searcher**)malloc(sizeof(*border_searcher) * mesh_ctx->vertices_size);
+	memset(border_searcher, 0, sizeof(*border_searcher) * mesh_ctx->vertices_size);
 
 	mesh_ctx->node_size = node_size;
-	mesh_ctx->node = ( struct nav_node * )malloc(sizeof( struct nav_node ) * mesh_ctx->node_size);
-	memset(mesh_ctx->node, 0, sizeof( struct nav_node ) * mesh_ctx->node_size);
+	mesh_ctx->node = (struct nav_node *)malloc(sizeof(struct nav_node) * mesh_ctx->node_size);
+	memset(mesh_ctx->node, 0, sizeof(struct nav_node) * mesh_ctx->node_size);
 
 	//初始化多边形信息，并计算出多边形的边
-	for ( i = 0; i < node_size; i++ ) {
+	for (i = 0; i < node_size; i++) {
 		struct nav_node* node = &mesh_ctx->node[i];
-		memset(node, 0, sizeof( *node ));
+		memset(node, 0, sizeof(*node));
 		mh_init(&node->elt);
 		node->id = i;
 
 		node->size = p[i][0];
 
-		node->border = (int*)malloc(node->size * sizeof( int ));
-		node->poly = (int*)malloc(node->size * sizeof( int ));
+		node->border = (int*)malloc(node->size * sizeof(int));
+		node->poly = (int*)malloc(node->size * sizeof(int));
 
 		struct vector3 center;
 		center.x = center.y = center.z = 0;
@@ -255,7 +253,7 @@ load_mesh(double** v, int vertices_size, int** p, int node_size) {
 		node->link_border = -1;
 		node->link_parent = NULL;
 
-		for ( j = 1; j <= node->size; j++ ) {
+		for (j = 1; j <= node->size; j++) {
 			node->poly[j - 1] = p[i][j];
 			center.x += mesh_ctx->vertices[node->poly[j - 1]].x;
 			center.y += mesh_ctx->vertices[node->poly[j - 1]].y;
@@ -273,7 +271,7 @@ load_mesh(double** v, int vertices_size, int** p, int node_size) {
 		vertex_sort(mesh_ctx, node);
 
 		//初始化多边形的边
-		for ( k = 0; k < node->size; k++ ) {
+		for (k = 0; k < node->size; k++) {
 			int k0 = k;
 			int k1 = k + 1 >= node->size ? 0 : k + 1;
 
@@ -306,17 +304,17 @@ release_mesh(struct nav_mesh_context* ctx) {
 	free(ctx->vertices);
 	free(ctx->borders);
 	int i;
-	for ( i = 0; i < ctx->node_size; i++ ) {
-		if ( ctx->node[i].border != NULL )
+	for (i = 0; i < ctx->node_size; i++) {
+		if (ctx->node[i].border != NULL)
 			free(ctx->node[i].border);
-		if ( ctx->node[i].poly != NULL )
+		if (ctx->node[i].poly != NULL)
 			free(ctx->node[i].poly);
 	}
 	free(ctx->node);
 	free(ctx->mask_ctx.mask);
 	free(ctx->result.wp);
 	mh_dtor(&ctx->openlist);
-	if ( ctx->tile != NULL ) {
+	if (ctx->tile != NULL) {
 		release_tile(ctx, ctx->tile);
 	}
 	free(ctx);

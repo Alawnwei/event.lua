@@ -83,7 +83,7 @@ delete_queue(task_queue_t* queue) {
 	cond_destroy(&queue->cond);
 
 	free(queue);
-} 
+}
 
 static inline int
 queue_empty(task_queue_t* queue) {
@@ -127,7 +127,7 @@ thread_pool_consumer(void* ud) {
 		queue->pool->init_func(queue->pool, ctx->index, queue->pool->ud);
 	}
 
-	for(;;) {
+	for (;;) {
 		mutex_lock(&queue->mutex);
 		task_t* task = task_pop(queue);
 		if (!task) {
@@ -147,7 +147,7 @@ thread_pool_consumer(void* ud) {
 					queue->pool->wakeup_func(queue->pool, ctx->index, queue->pool->ud);
 				}
 			}
-			
+
 		} else {
 			mutex_unlock(&queue->mutex);
 			task->consumer(queue->pool, ctx->index, task->session, task->data, task->size, queue->pool->ud);
@@ -181,7 +181,7 @@ thread_pool_create(thread_init init_func, thread_fina fina_func, thread_wakeup w
 	return pool;
 }
 
-void 
+void
 thread_pool_release(struct thread_pool* pool) {
 	delete_queue(pool->queue);
 	free(pool);
@@ -193,7 +193,7 @@ thread_pool_start(thread_pool_t* pool, int thread_count) {
 	pool->pids = malloc(thread_count * sizeof(pthread_t));
 
 	int i;
-	for(i = 0;i<thread_count;i++) {
+	for (i = 0; i < thread_count; i++) {
 		pthread_t pid;
 		consumer_ctx_t* ctx = malloc(sizeof(*ctx));
 		ctx->index = i;

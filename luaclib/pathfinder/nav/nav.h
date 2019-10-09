@@ -27,28 +27,24 @@
 
 #define get_mask(ctx,index) (ctx.mask[index])
 
-struct vector3
-{
+struct vector3 {
 	double x;
 	double y;
 	double z;
 };
 
-struct nav_path
-{
+struct nav_path {
 	struct vector3* wp;
 	int offset;
 	int size;
 };
 
-struct nav_mesh_mask
-{
+struct nav_mesh_mask {
 	int *mask;
 	int size;
 };
 
-struct nav_node
-{
+struct nav_node {
 	mh_elt_t elt;
 	int id;
 
@@ -80,8 +76,7 @@ struct nav_node
 	struct vector3 pos;
 };
 
-struct nav_border
-{
+struct nav_border {
 	int id;
 	int node[2];
 	int a;
@@ -90,8 +85,7 @@ struct nav_border
 	struct vector3 center;
 };
 
-struct nav_tile
-{
+struct nav_tile {
 	int* node;
 	int offset;
 	int size;
@@ -102,8 +96,7 @@ struct nav_tile
 #endif
 };
 
-struct nav_mesh_context
-{
+struct nav_mesh_context {
 	//¶¥µã
 	struct vector3 * vertices;
 	int vertices_size;
@@ -141,7 +134,7 @@ struct nav_mesh_context
 	struct nav_node* closelist;
 };
 
-typedef void(*search_dumper)( void* ud, int index );
+typedef void(*search_dumper)(void* ud, int index);
 
 struct nav_mesh_context* load_mesh(double** v, int v_cnt, int** p, int p_cnt);
 void init_mesh(struct nav_mesh_context* ctx);

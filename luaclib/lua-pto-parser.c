@@ -28,12 +28,12 @@
 
 #define MAX_PATH_LENGTH 	64
 
-static const char* BUILTIN_TYPE[] = { "bool", "short", "int", "float", "double", "string"};
+static const char* BUILTIN_TYPE[] = { "bool", "short", "int", "float", "double", "string" };
 
 
 struct protocol;
 
-KHASH_MAP_INIT_STR(pto,struct protocol*);
+KHASH_MAP_INIT_STR(pto, struct protocol*);
 
 typedef khash_t(pto) hash_pto_t;
 
@@ -84,28 +84,28 @@ struct parser_context {
 	int token_size;
 };
 
-char* 
-stralloc(struct parser_context* parser,const char* str,size_t size) {
+char*
+stralloc(struct parser_context* parser, const char* str, size_t size) {
 	lua_getfield(parser->L, 1, str);
-	if (!lua_isnil(parser->L,2)) {
-		char* result = lua_touserdata(parser->L,-1);
-		lua_pop(parser->L,1);
+	if (!lua_isnil(parser->L, 2)) {
+		char* result = lua_touserdata(parser->L, -1);
+		lua_pop(parser->L, 1);
 		return result;
 	}
-	lua_pop(parser->L,1);
+	lua_pop(parser->L, 1);
 
-	lua_pushlstring(parser->L,str,size);
-	char* ptr = (char*)lua_tostring(parser->L,-1);
-	lua_pushlightuserdata(parser->L,ptr);
-	lua_settable(parser->L,1);
+	lua_pushlstring(parser->L, str, size);
+	char* ptr = (char*)lua_tostring(parser->L, -1);
+	lua_pushlightuserdata(parser->L, ptr);
+	lua_settable(parser->L, 1);
 	return ptr;
 }
 
 
 /*
 protocol hash
- */
-void 
+*/
+void
 pto_hash_set(hash_pto_t *self, char* name, struct protocol* pto) {
 	int ok;
 	khiter_t k = kh_put(pto, self, strdup(name), &ok);
@@ -113,15 +113,15 @@ pto_hash_set(hash_pto_t *self, char* name, struct protocol* pto) {
 	kh_value(self, k) = pto;
 }
 
-void 
+void
 pto_hash_del(hash_pto_t *self, char* name) {
 	khiter_t k = kh_get(pto, self, name);
 	assert(k != kh_end(self));
 	kh_del(pto, self, k);
 }
 
-struct protocol* 
-pto_hash_find(hash_pto_t *self, char* name) {
+struct protocol*
+	pto_hash_find(hash_pto_t *self, char* name) {
 	khiter_t k = kh_get(pto, self, name);
 	if (k == kh_end(self)) {
 		return NULL;
@@ -140,8 +140,8 @@ void pto_hash_free(hash_pto_t *self) {
 
 /*
 string skiper
- */
-static inline int 
+*/
+static inline int
 eos(struct lexer *l, int n) {
 	if (*(l->cursor + n) == 0)
 		return 1;
@@ -151,7 +151,7 @@ eos(struct lexer *l, int n) {
 
 static inline void skip_space(struct lexer *l);
 
-static inline void 
+static inline void
 next_line(struct lexer *l) {
 	char *n = l->cursor;
 	while (*n != '\n' && *n)
@@ -164,7 +164,7 @@ next_line(struct lexer *l) {
 	return;
 }
 
-static inline void 
+static inline void
 skip_space(struct lexer *l) {
 	char *n = l->cursor;
 	while (isspace(*n) && *n) {
@@ -179,37 +179,37 @@ skip_space(struct lexer *l) {
 	return;
 }
 
-static inline void 
+static inline void
 skip(struct lexer* l, int size) {
 	char *n = l->cursor;
 	int index = 0;
-	while (!eos(l,0) && index < size) {
+	while (!eos(l, 0) && index < size) {
 		n++;
 		index++;
 	}
 	l->cursor = n;
 }
 
-static inline int 
+static inline int
 expect(struct lexer* l, char ch) {
 	return *l->cursor == ch;
 }
 
-static inline int 
+static inline int
 expect_space(struct lexer* l) {
 	return isspace(*l->cursor);
 }
 
 static inline char*
-next_token(struct parser_context* parser,struct lexer* l,size_t* size) {
+next_token(struct parser_context* parser, struct lexer* l, size_t* size) {
 	char ch = *l->cursor;
 	int index = 0;
-	while(ch != 0 && (ch == '_' || isalpha(ch) || isdigit(ch))) {
+	while (ch != 0 && (ch == '_' || isalpha(ch) || isdigit(ch))) {
 		if (index >= parser->token_size) {
 			parser->token_size *= 2;
 			if (index > parser->token_size)
 				parser->token_size = index;
-			parser->token = realloc(parser->token,parser->token_size);
+			parser->token = realloc(parser->token, parser->token_size);
 		}
 		parser->token[index] = ch;
 		index++;
@@ -222,8 +222,8 @@ next_token(struct parser_context* parser,struct lexer* l,size_t* size) {
 	return parser->token;
 }
 
-struct protocol* 
-create_protocol(struct parser_context* parser, const char* file, const char* name) {
+struct protocol*
+	create_protocol(struct parser_context* parser, const char* file, const char* name) {
 	struct protocol* pto = (struct protocol*)malloc(sizeof(*pto));
 	pto->name = stralloc(parser, name, strlen(name));
 	pto->file = stralloc(parser, file, strlen(file));
@@ -236,7 +236,7 @@ create_protocol(struct parser_context* parser, const char* file, const char* nam
 	return pto;
 }
 
-void 
+void
 add_field(struct protocol* protocol, struct field* f) {
 	if (protocol->size == protocol->cap) {
 		int ncap = protocol->cap * 2;
@@ -250,8 +250,8 @@ add_field(struct protocol* protocol, struct field* f) {
 	protocol->field[protocol->size++] = f;
 }
 
-struct field* 
-create_field(struct protocol* pto,int array,int field_type,struct protocol* reference, char* field_name) {
+struct field*
+	create_field(struct protocol* pto, int array, int field_type, struct protocol* reference, char* field_name) {
 	struct field* f = (struct field*)malloc(sizeof(*f));
 	memset(f, 0, sizeof(*f));
 	f->name = field_name;
@@ -264,11 +264,11 @@ create_field(struct protocol* pto,int array,int field_type,struct protocol* refe
 }
 
 
-void lexer_execute(struct parser_context* parser,lexer_t* lexer, hash_pto_t* pto_hash);
+void lexer_execute(struct parser_context* parser, lexer_t* lexer, hash_pto_t* pto_hash);
 
 /*
 parser
- */
+*/
 void
 parser_init(struct parser_context* parser, const char* path) {
 	parser->L = luaL_newstate();
@@ -276,7 +276,7 @@ parser_init(struct parser_context* parser, const char* path) {
 	lua_newtable(parser->L);
 
 	parser->pto_ctx = pto_hash_new();
-	
+
 	parser->path = stralloc(parser, path, strlen(path));
 	parser->token_size = 64;
 	parser->token = malloc(parser->token_size);
@@ -305,7 +305,7 @@ parser_release(struct parser_context* parser) {
 	free(parser->importer);
 }
 
-void 
+void
 parse_end(struct parser_context* parser, lexer_t* lexer) {
 	if (parser->offset == parser->size) {
 		int nsize = parser->size;
@@ -318,7 +318,7 @@ parse_end(struct parser_context* parser, lexer_t* lexer) {
 	}
 	parser->importer[parser->offset++] = lexer;
 }
-int 
+int
 parser_prepare(struct parser_context* parser, lexer_t* lexer, const char* file) {
 	char fullname[MAX_PATH_LENGTH];
 	memset(fullname, 0, MAX_PATH_LENGTH);
@@ -358,9 +358,9 @@ parser_prepare(struct parser_context* parser, lexer_t* lexer, const char* file) 
 
 /*
 lexer
- */
-lexer_t* 
-lexer_create(struct parser_context* parser,lexer_t* parent) {
+*/
+lexer_t*
+lexer_create(struct parser_context* parser, lexer_t* parent) {
 	lexer_t* lexer = malloc(sizeof(*lexer));
 	lexer->parent = parent;
 	lexer->cursor = lexer->data = lexer->file = NULL;
@@ -368,7 +368,7 @@ lexer_create(struct parser_context* parser,lexer_t* parent) {
 	return lexer;
 }
 
-void 
+void
 lexer_release(lexer_t* lexer) {
 	if (lexer->data != NULL) {
 		free(lexer->data);
@@ -377,9 +377,9 @@ lexer_release(lexer_t* lexer) {
 }
 
 int
-lexer_has_import(struct parser_context* parser,const char* file) {
+lexer_has_import(struct parser_context* parser, const char* file) {
 	int i;
-	for(i=0;i < parser->offset;i++) {
+	for (i = 0; i < parser->offset; i++) {
 		lexer_t* lexer = parser->importer[i];
 		if (strncmp(lexer->file, file, strlen(file)) == 0)
 			return 1;
@@ -387,8 +387,8 @@ lexer_has_import(struct parser_context* parser,const char* file) {
 	return 0;
 }
 
-struct protocol* 
-create_pto(struct parser_context* parser, const char* file, const char* name) {
+struct protocol*
+	create_pto(struct parser_context* parser, const char* file, const char* name) {
 	struct protocol* pto = (struct protocol*)malloc(sizeof(*pto));
 	pto->name = stralloc(parser, name, strlen(name));
 	pto->file = stralloc(parser, file, strlen(file));
@@ -413,14 +413,14 @@ free_pto(struct protocol* pto) {
 	kh_destroy(pto, pto->children);
 
 	int i;
-	for(i=0;i<pto->size;i++) {
+	for (i = 0; i < pto->size; i++) {
 		free(pto->field[i]);
 	}
 	free(pto->field);
 	free(pto);
 }
 
-void 
+void
 import_pto(struct parser_context* parser, lexer_t* parent, char* name) {
 	char file[MAX_PATH_LENGTH];
 	memset(file, 0, MAX_PATH_LENGTH);
@@ -433,14 +433,14 @@ import_pto(struct parser_context* parser, lexer_t* parent, char* name) {
 	lexer_release(lexer);
 }
 
-void 
+void
 parse_pto(struct parser_context* parser, lexer_t* lexer, struct protocol* parent) {
-	hash_pto_t* pto_hash = (parent == NULL) ? parser->pto_ctx:parent->children;
+	hash_pto_t* pto_hash = (parent == NULL) ? parser->pto_ctx : parent->children;
 
 	size_t len = 0;
 	char* name = next_token(parser, lexer, &len);
 
-	if (!expect(lexer,'{')) {
+	if (!expect(lexer, '{')) {
 		fprintf(stderr, "%s@line:%d syntax error:protocol must start with {\n", lexer->file, lexer->line);
 		THROW(lexer);
 	}
@@ -508,21 +508,21 @@ parse_pto(struct parser_context* parser, lexer_t* lexer, struct protocol* parent
 				}
 			}
 		}
-		
+
 		name = next_token(parser, lexer, &len);
 		if (len == 0) {
 			fprintf(stderr, "%s@line:%d syntax error\n", lexer->file, lexer->line);
 			THROW(lexer);
 		}
 
-		create_field(pto,isarray,field_type,ref_pto,stralloc(parser, name, len));
+		create_field(pto, isarray, field_type, ref_pto, stralloc(parser, name, len));
 	}
 	skip(lexer, 1);
 	skip_space(lexer);
 }
 
-void 
-lexer_execute(struct parser_context* parser,lexer_t* lexer, hash_pto_t* pto_hash) {
+void
+lexer_execute(struct parser_context* parser, lexer_t* lexer, hash_pto_t* pto_hash) {
 	size_t len = 0;
 	char* name = next_token(parser, lexer, &len);
 	if (len == 0) {
@@ -532,7 +532,7 @@ lexer_execute(struct parser_context* parser,lexer_t* lexer, hash_pto_t* pto_hash
 
 	if (strncmp(name, "protocol", len) == 0) {
 		return parse_pto(parser, lexer, NULL);
-	
+
 	} else if (strncmp(name, "import", len) == 0) {
 		skip_space(lexer);
 
@@ -565,7 +565,7 @@ lexer_execute(struct parser_context* parser,lexer_t* lexer, hash_pto_t* pto_hash
 	THROW(lexer);
 }
 
-void 
+void
 pto_export(lua_State* L, struct protocol* pto, int index, int depth) {
 	depth++;
 
@@ -575,15 +575,15 @@ pto_export(lua_State* L, struct protocol* pto, int index, int depth) {
 
 	lua_newtable(L);
 
-		lua_newtable(L);
-		char* name;
-		struct protocol* child_pto;
-		pto_hash_foreach(pto->children, name, child_pto, {
-			pto_export(L, child_pto, lua_gettop(L), depth);
-			lua_setfield(L, -2, name);
-		});
+	lua_newtable(L);
+	char* name;
+	struct protocol* child_pto;
+	pto_hash_foreach(pto->children, name, child_pto, {
+		pto_export(L, child_pto, lua_gettop(L), depth);
+		lua_setfield(L, -2, name);
+	});
 
-	lua_setfield(L,-2,"children");
+	lua_setfield(L, -2, "children");
 
 	lua_pushstring(L, pto->file);
 	lua_setfield(L, -2, "file");
@@ -597,38 +597,38 @@ pto_export(lua_State* L, struct protocol* pto, int index, int depth) {
 	for (i = 0; i < pto->size; ++i) {
 
 		struct field* f = pto->field[i];
-		
+
 		lua_newtable(L);
 
-		lua_pushinteger(L,f->type);
-		lua_setfield(L,-2,"type");
+		lua_pushinteger(L, f->type);
+		lua_setfield(L, -2, "type");
 
-		lua_pushboolean(L,f->array);
-		lua_setfield(L,-2,"array");
+		lua_pushboolean(L, f->array);
+		lua_setfield(L, -2, "array");
 
 		if (f->type == TYPE_PROTOCOL) {
-			lua_pushstring(L,f->protocol->name);
+			lua_pushstring(L, f->protocol->name);
 		} else {
-			lua_pushstring(L,BUILTIN_TYPE[f->type]);
+			lua_pushstring(L, BUILTIN_TYPE[f->type]);
 		}
-		lua_setfield(L,-2,"type_name");
+		lua_setfield(L, -2, "type_name");
 
-		lua_pushstring(L,f->name);
-		lua_setfield(L,-2,"name");
+		lua_pushstring(L, f->name);
+		lua_setfield(L, -2, "name");
 
-		lua_pushinteger(L,i);
-		lua_setfield(L,-2,"index");
+		lua_pushinteger(L, i);
+		lua_setfield(L, -2, "index");
 
-		lua_setfield(L,-2,f->name);
+		lua_setfield(L, -2, f->name);
 	}
 
-	lua_setfield(L,-2,"fields");
+	lua_setfield(L, -2, "fields");
 }
 
-static int 
+static int
 _execute(lua_State* L) {
-	const char* path = luaL_checkstring(L,1);
-	const char* file = luaL_checkstring(L,2);
+	const char* path = luaL_checkstring(L, 1);
+	const char* file = luaL_checkstring(L, 2);
 
 	struct parser_context parser;
 	parser_init(&parser, path);
@@ -638,13 +638,13 @@ _execute(lua_State* L) {
 	if (parser_prepare(&parser, lexer, file) < 0) {
 		parser_release(&parser);
 		lexer_release(lexer);
-		luaL_error(L,"parse error");
+		luaL_error(L, "parse error");
 	}
 
-	lua_pop(L,2);
+	lua_pop(L, 2);
 	int depth = 0;
-	luaL_checkstack(L, MAX_DEPTH*2 + 8, NULL);
-	
+	luaL_checkstack(L, MAX_DEPTH * 2 + 8, NULL);
+
 	lua_newtable(L);
 
 	char* name;
@@ -660,12 +660,12 @@ _execute(lua_State* L) {
 }
 
 int
-luaopen_ptoparser(lua_State* L){
+luaopen_ptoparser(lua_State* L) {
 	luaL_Reg l[] = {
 		{ "execute", _execute },
 		{ NULL, NULL },
 	};
 	luaL_checkversion(L);
-	luaL_newlib(L,l);
+	luaL_newlib(L, l);
 	return 1;
 }

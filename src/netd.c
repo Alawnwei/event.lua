@@ -6,7 +6,8 @@
 
 #define kCACHED      		1024 * 1024
 #define kWARN_OUTPUT_FLOW 	1024 * 10
-#define kMAX_PACKET_SIZE    1024 * 6
+#define kMAX_CLIENT_PACKET  1024 * 6
+#define kMAX_SERVER_PACKET  1024 * 1024 * 16
 #define kCLIENT_HEADER      2
 #define kSERVER_HEADER      4
 #define kERROR              64
@@ -19,6 +20,7 @@ struct client;
 struct server;
 
 typedef struct netd {
+	int id;
 	struct ev_loop_ctx* loop_ctx;
 	struct ev_timer timer;
 	struct ev_listener* client_listener;
@@ -33,7 +35,7 @@ typedef struct netd {
 	uint32_t index;
 
 	uint32_t max_freq;
-	uint32_t timeout;
+	uint32_t max_alive;
 
 	struct server* server_slot[kMAX_SERVER];
 
@@ -103,7 +105,7 @@ static void netd_server_client_broadcast(server_t* server, stream_reader* reader
 static void netd_server_client_close(server_t* server, stream_reader* reader);
 
 static server_cmd_func g_server_cmd[] = {
-	NULL,
+	netd_server_register,
 	netd_server_login_master_register,
 	netd_server_scene_master_register,
 	netd_server_set_server_id,
@@ -131,9 +133,12 @@ free_buffer(uint8_t* buffer) {
 }
 
 netd_t*
-netd_create(struct ev_loop_ctx* loop_ctx, uint32_t max_client, uint32_t max_freq, uint32_t timeout) {
+netd_create(struct ev_loop_ctx* loop_ctx, int id, uint32_t max_client, uint32_t max_freq, uint32_t max_alive) {
 	netd_t* netd = malloc(sizeof(*netd));
 	memset(netd, 0, sizeof(*netd));
+	netd->id = id;
+	netd->login_master_id = -1;
+	netd->scene_master_id = -1;
 
 	netd->max_client = max_client;
 	if (netd->max_client < 1) {
@@ -145,9 +150,9 @@ netd_create(struct ev_loop_ctx* loop_ctx, uint32_t max_client, uint32_t max_freq
 		netd->max_freq = 100;
 	}
 
-	netd->timeout = timeout;
-	if (netd->timeout < 1) {
-		netd->timeout = 60;
+	netd->max_alive = max_alive;
+	if (netd->max_alive < 1) {
+		netd->max_alive = 60;
 	}
 
 	netd->container = container_create(netd->max_client);
@@ -278,11 +283,13 @@ netd_client_accept(struct ev_listener *listener, int fd, const char* addr, void 
 
 	if (netd->count >= netd->max_client) {
 		close(fd);
+		fprintf(stderr, "num of client:%d limited:%d\n", netd->count, netd->max_client);
 		return;
 	}
 
 	if (netd->login_master_id < 0) {
 		close(fd);
+		fprintf(stderr, "no login master founded\n");
 		return;
 	}
 
@@ -326,7 +333,7 @@ netd_client_accept(struct ev_listener *listener, int fd, const char* addr, void 
 static void
 netd_client_read(struct ev_session* ev_session, void* ud) {
 	client_t* client = ud;
-	for (;;) {
+	while (client->markdead == 0) {
 		if (client->need == 0) {
 			size_t total = ev_session_input_size(client->session);
 			if (total < kCLIENT_HEADER) {
@@ -344,7 +351,7 @@ netd_client_read(struct ev_session* ev_session, void* ud) {
 			client->need = header[0] | header[1] << 8;
 			client->need -= kCLIENT_HEADER;
 
-			if (client->need > kMAX_PACKET_SIZE) {
+			if (client->need > kMAX_CLIENT_PACKET) {
 				snprintf(client->netd->error, kERROR, "client packet size:%d too much", client->need);
 				netd_client_exit(client, client->netd->error);
 				return;
@@ -442,8 +449,8 @@ netd_client_update(struct ev_loop* loop, struct ev_timer* io, int revents) {
 		netd_client_exit(client, client->netd->error);
 	} else {
 		client->freq = 0;
-		if (client->tick != 0 && loop_ctx_now(client->netd->loop_ctx) - client->tick > client->netd->timeout) {
-			netd_client_exit(client, "client timeout");
+		if (client->tick != 0 && loop_ctx_now(client->netd->loop_ctx) - client->tick > client->netd->max_alive) {
+			netd_client_exit(client, "client max alive");
 		}
 	}
 }
@@ -524,7 +531,7 @@ netd_server_accept(struct ev_listener *listener, int fd, const char* addr, void 
 static void
 netd_server_read(struct ev_session* ev_session, void* ud) {
 	server_t* server = ud;
-	for (;;) {
+	while (server->markdead == 0) {
 		if (server->need == 0) {
 			size_t total = ev_session_input_size(server->session);
 			if (total < kSERVER_HEADER) {
@@ -542,7 +549,7 @@ netd_server_read(struct ev_session* ev_session, void* ud) {
 			server->need = header[0] | header[1] << 8;
 			server->need -= kSERVER_HEADER;
 
-			if (server->need > kMAX_PACKET_SIZE) {
+			if (server->need > kMAX_SERVER_PACKET) {
 				snprintf(server->netd->error, kERROR, "server packet size:%d too much", server->need);
 				netd_server_exit(server, server->netd->error);
 				return;
@@ -596,8 +603,6 @@ static void
 netd_server_handle_cmd(server_t* server, uint16_t cmd, stream_reader* reader) {
 	if (server->id < 0) {
 		assert(cmd == kCMD_REGISTER);
-		netd_server_register(server, reader);
-		return;
 	}
 	g_server_cmd[cmd](server, reader);
 }
@@ -680,3 +685,20 @@ netd_server_client_close(server_t* server, stream_reader* reader) {
 	netd_client_close(netd, client_id, 1);
 }
 
+int main() {
+	struct ev_loop_ctx* loop_ctx = loop_ctx_create();
+
+	netd_t* netd = netd_create(loop_ctx, 0, 1000, 100, 60);
+	if (netd_client_start(netd, "0.0.0.0", 9999) < 0) {
+		fprintf(stderr, "netd client start error:%s\n", strerror(errno));
+		exit(1);
+	}
+	if (netd_server_start(netd, "netd01.ipc") < 0) {
+		fprintf(stderr, "netd server start error:%s\n", strerror(errno));
+		exit(1);
+	}
+	loop_ctx_dispatch(loop_ctx);
+
+	netd_release(netd);
+	return 0;
+}

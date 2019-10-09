@@ -44,7 +44,7 @@ memory_allocated(lua_State* L) {
 #ifdef USE_TC
 	MallocExtension_GetNumericProperty("generic.current_allocated_bytes", &allocated_bytes);
 #endif
-	lua_pushinteger(L,allocated_bytes);
+	lua_pushinteger(L, allocated_bytes);
 	return 1;
 }
 
@@ -56,7 +56,7 @@ memory_free(lua_State* L) {
 
 int
 cpu_profiler_start(lua_State* L) {
-	const char* fname = lua_tostring(L,1);
+	const char* fname = lua_tostring(L, 1);
 	CPU_PROFILER_START(fname);
 	return 0;
 }
@@ -69,7 +69,7 @@ cpu_profiler_stop(lua_State* L) {
 
 int
 heap_profiler_start(lua_State* L) {
-	const char* prefix = lua_tostring(L,1);
+	const char* prefix = lua_tostring(L, 1);
 	HEAP_PROFILER_START(prefix);
 	return 0;
 }
@@ -82,7 +82,7 @@ heap_profiler_stop(lua_State* L) {
 
 int
 heap_profiler_dump(lua_State* L) {
-	const char* reason = lua_tostring(L,1);
+	const char* reason = lua_tostring(L, 1);
 	HEAP_PROFILER_DUMP(reason);
 	return 0;
 }
@@ -90,29 +90,29 @@ heap_profiler_dump(lua_State* L) {
 int
 load_helper(lua_State* L) {
 	const luaL_Reg lib[] = {
-		{ "free" ,memory_free },
-		{ "allocated" ,memory_allocated },
+		{ "free", memory_free },
+		{ "allocated", memory_allocated },
 		{ NULL, NULL },
 	};
 
 	luaL_newlib(L, lib);
 
 	const luaL_Reg cpu[] = {
-		{ "start" ,cpu_profiler_start },
-		{ "stop" ,cpu_profiler_stop },
+		{ "start", cpu_profiler_start },
+		{ "stop", cpu_profiler_stop },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, cpu);
-	lua_setfield(L,-2,"cpu");
+	lua_setfield(L, -2, "cpu");
 
 	const luaL_Reg heap[] = {
-		{ "start" ,heap_profiler_start },
-		{ "stop" ,heap_profiler_stop },
-		{ "dump" ,heap_profiler_dump },
+		{ "start", heap_profiler_start },
+		{ "stop", heap_profiler_stop },
+		{ "dump", heap_profiler_dump },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, heap);
-	lua_setfield(L,-2,"heap");
+	lua_setfield(L, -2, "heap");
 
 	return 1;
 }

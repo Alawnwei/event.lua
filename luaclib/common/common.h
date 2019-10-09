@@ -14,7 +14,7 @@ float sqrt_dot2dot(vector2_t* a, vector2_t* b);
 float dot2dot(vector2_t* a, vector2_t* b);
 float dot2segment(vector2_t* x0, vector2_t* x1, vector2_t* x);
 
-void vector2_rotation(vector2_t* dot, vector2_t* center,float angle);
+void vector2_rotation(vector2_t* dot, vector2_t* center, float angle);
 void move_torward(vector2_t* result, vector2_t* from, float angle, float dt);
 void move_forward(vector2_t* result, vector2_t* from, vector2_t* to, float pass);
 

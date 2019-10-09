@@ -52,7 +52,7 @@ void on_leave(int self, int other, void* ud) {
 	}
 }
 
-int 
+int
 laoi_new(lua_State *L) {
 	int scene_id = luaL_checkinteger(L, 1);
 	int scene_width = luaL_checkinteger(L, 2);
@@ -60,30 +60,30 @@ laoi_new(lua_State *L) {
 	int tile_cell = luaL_optinteger(L, 4, 5);
 	int range = luaL_optinteger(L, 5, 5);
 
-	laoi_t* laoi = lua_newuserdata(L,sizeof(*laoi));
-	memset(laoi,0,sizeof(*laoi));
+	laoi_t* laoi = lua_newuserdata(L, sizeof(*laoi));
+	memset(laoi, 0, sizeof(*laoi));
 	laoi->aoi = aoi_create(scene_width, scene_height, tile_cell, range, 64, on_enter, on_leave);
 	laoi->scene_id = scene_id;
 
-	luaL_newmetatable(L,"meta_fast_aoi");
- 	lua_setmetatable(L, -2);
+	luaL_newmetatable(L, "meta_fast_aoi");
+	lua_setmetatable(L, -2);
 	return 1;
 }
 
-int 
+int
 laoi_release(lua_State* L) {
 	laoi_t* laoi = lua_touserdata(L, 1);
 	aoi_release(laoi->aoi);
 	return 0;
 }
 
-int 
+int
 laoi_enter(lua_State *L) {
 	laoi_t* laoi = lua_touserdata(L, 1);
 	int uid = luaL_checkinteger(L, 2);
 	float x = luaL_checknumber(L, 3);
 	float z = luaL_checknumber(L, 4);
-	int layer = luaL_checkinteger(L,5);
+	int layer = luaL_checkinteger(L, 5);
 
 	assert(lua_gettop(L) == 5);
 
@@ -96,7 +96,7 @@ laoi_enter(lua_State *L) {
 	param.self = uid;
 	param.stack_enter_self = 6;
 	param.stack_enter_other = 7;
-	
+
 	int status = aoi_enter(laoi->aoi, uid, x, z, layer, &param);
 	if (status < 0) {
 		luaL_error(L, "aoi enter error:%s", aoi_error(status));
@@ -135,7 +135,7 @@ laoi_leave(lua_State *L) {
 	return 1;
 }
 
-int 
+int
 laoi_update(lua_State *L) {
 	laoi_t* laoi = lua_touserdata(L, 1);
 	int id = lua_tointeger(L, 2);
@@ -163,7 +163,7 @@ laoi_update(lua_State *L) {
 	param.stack_enter_other = 6;
 	param.stack_leave_self = 7;
 	param.stack_leave_other = 8;
-	
+
 	int status = aoi_update(laoi->aoi, id, x, z, &param);
 	if (status != 0) {
 		luaL_error(L, "aoi update error:%s", aoi_error(status));
@@ -172,19 +172,19 @@ laoi_update(lua_State *L) {
 	return 4;
 }
 
-int 
+int
 lwitness_list(lua_State *L) {
-	
+
 	return 1;
 }
 
-int 
+int
 lvisible_list(lua_State *L) {
-	
+
 	return 1;
 }
 
-int 
+int
 luaopen_simpleaoi_core(lua_State *L) {
 	luaL_checkversion(L);
 
@@ -197,16 +197,16 @@ luaopen_simpleaoi_core(lua_State *L) {
 		{ "visible_list", lvisible_list },
 		{ NULL, NULL },
 	};
-	luaL_newlib(L,meta);
+	luaL_newlib(L, meta);
 	lua_setfield(L, -2, "__index");
 
-	lua_pushcfunction(L,laoi_release);
+	lua_pushcfunction(L, laoi_release);
 	lua_setfield(L, -2, "__gc");
-	lua_pop(L,1);
+	lua_pop(L, 1);
 
 
 	luaL_Reg l[] = {
-		{ "new", laoi_new},
+		{ "new", laoi_new },
 		{ NULL, NULL },
 	};
 

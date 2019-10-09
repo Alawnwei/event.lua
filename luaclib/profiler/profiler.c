@@ -42,13 +42,13 @@ typedef struct co {
 static inline double
 get_time() {
 	struct timeval tv;
-    gettimeofday(&tv, NULL);
-    double now = tv.tv_sec + tv.tv_usec * 1e-6;
-    return now;
+	gettimeofday(&tv, NULL);
+	double now = tv.tv_sec + tv.tv_usec * 1e-6;
+	return now;
 }
 
 static void *
-lalloc (void *ud, void *ptr, size_t osize, size_t nsize) {
+lalloc(void *ud, void *ptr, size_t osize, size_t nsize) {
 	context_t* ctx = ud;
 	if (nsize != 0 && nsize > osize) {
 		ctx->co_ctx->alloc_count++;
@@ -63,7 +63,7 @@ create_string(context_t* profiler, const char* str) {
 		return str;
 
 	lua_getfield(profiler->pool, 1, str);
-	if ( !lua_isnil(profiler->pool, 2) ) {
+	if (!lua_isnil(profiler->pool, 2)) {
 		char* result = lua_touserdata(profiler->pool, -1);
 		lua_pop(profiler->pool, 1);
 		return result;
@@ -80,14 +80,14 @@ create_string(context_t* profiler, const char* str) {
 static inline frame_t*
 frame_create(context_t* ctx, const char* source, const char* name, int linedefined) {
 	frame_t* frame = NULL;
-	if ( ctx->freelist) {
+	if (ctx->freelist) {
 		frame = ctx->freelist;
 		ctx->freelist = frame->free_next;
 	} else {
-		frame = malloc(sizeof( *frame ));
+		frame = malloc(sizeof(*frame));
 	}
-	
-	memset(frame, 0, sizeof( *frame ));
+
+	memset(frame, 0, sizeof(*frame));
 
 	if (name) {
 		frame->name = create_string(ctx, name);
@@ -99,12 +99,12 @@ frame_create(context_t* ctx, const char* source, const char* name, int linedefin
 }
 
 static inline void
-frame_delete(context_t* ctx,frame_t* frame) {
+frame_delete(context_t* ctx, frame_t* frame) {
 	frame->free_next = ctx->freelist;
 	ctx->freelist = frame;
 }
 
-void 
+void
 frame_push(co_t* co_ctx, context_t* profiler, const char* name, const char* source, int linedefined) {
 	double now = get_time();
 
@@ -116,14 +116,13 @@ frame_push(co_t* co_ctx, context_t* profiler, const char* name, const char* sour
 	frame->invoke_diff = now;
 	frame->invoke_cost = 0;
 	frame->invoke_start = now;
-	
+
 	frame->next = frame->prev = NULL;
 
 	if (co_ctx->head == NULL) {
 		assert(co_ctx->head == co_ctx->tail);
 		co_ctx->head = co_ctx->tail = frame;
-	}
-	else {
+	} else {
 		co_ctx->tail->next = frame;
 		frame->prev = co_ctx->tail;
 		co_ctx->tail = frame;
@@ -139,16 +138,15 @@ void
 frame_pop(co_t* co_ctx, context_t* profiler) {
 	assert(co_ctx->head != NULL);
 	assert(co_ctx->tail != NULL);
-	
+
 	frame_t* frame = NULL;
 	while (co_ctx->tail) {
 		frame = co_ctx->tail;
 		assert(frame != NULL);
 
-		if ( frame == co_ctx->head ) {
+		if (frame == co_ctx->head) {
 			co_ctx->head = co_ctx->tail = NULL;
-		}
-		else {
+		} else {
 			co_ctx->tail = frame->prev;
 			co_ctx->tail->next = NULL;
 		}
@@ -179,7 +177,7 @@ frame_pop(co_t* co_ctx, context_t* profiler) {
 
 	fm->alloc_count += frame->alloc_count;
 	fm->alloc_total += frame->alloc_total;
-	
+
 	fm->invoke_cost += frame->invoke_cost;
 	fm->invoke_cost += now - frame->invoke_start;
 	fm->invoke_diff += now - frame->invoke_diff;
@@ -192,22 +190,22 @@ frame_pop(co_t* co_ctx, context_t* profiler) {
 	frame_delete(profiler, frame);
 }
 
-static void 
-lhook (lua_State *L, lua_Debug *ar) {
+static void
+lhook(lua_State *L, lua_Debug *ar) {
 	context_t* ctx;
 	lua_getallocf(L, (void**)&ctx);
 	co_t* co_ctx = ctx->co_ctx;
-	if ( co_ctx->head == NULL ) {
-		if ( ar->event == LUA_HOOKRET )
+	if (co_ctx->head == NULL) {
+		if (ar->event == LUA_HOOKRET)
 			return;
 	}
-	
+
 	lua_getinfo(L, "nS", ar);
-	if ( ctx->hook_c == 0 && strcmp(ar->what,"C") == 0) {
+	if (ctx->hook_c == 0 && strcmp(ar->what, "C") == 0) {
 		return;
 	}
 
-	switch(ar->event) {
+	switch (ar->event) {
 		case LUA_HOOKCALL: {
 			frame_push(co_ctx, ctx, ar->name, ar->source, ar->linedefined);
 			break;
@@ -222,15 +220,15 @@ lhook (lua_State *L, lua_Debug *ar) {
 	}
 }
 
-static int 
+static int
 lco_create(lua_State* L) {
 	lua_CFunction co_create = lua_tocfunction(L, lua_upvalueindex(1));
 	int status = co_create(L);
 	lua_State* co = lua_tothread(L, -1);
 	lua_sethook(co, lhook, LUA_MASKCALL | LUA_MASKRET, 0);
 
-	co_t* co_ctx = malloc(sizeof( *co_ctx ));
-	memset(co_ctx, 0, sizeof( *co_ctx ));
+	co_t* co_ctx = malloc(sizeof(*co_ctx));
+	memset(co_ctx, 0, sizeof(*co_ctx));
 	lua_getfield(L, LUA_REGISTRYINDEX, "profiler");
 	lua_pushvalue(L, -2);
 	lua_pushlightuserdata(L, co_ctx);
@@ -306,12 +304,12 @@ lstop(lua_State* L) {
 
 	lua_getfield(L, LUA_REGISTRYINDEX, "profiler");
 	lua_pushnil(L);
-	while (lua_next(L, -2) != 0)	{
+	while (lua_next(L, -2) != 0) {
 		lua_State* co = lua_tothread(L, -2);
 		co_t* co_ctx = lua_touserdata(L, -1);
 
 		frame_t* cursor = co_ctx->head;
-		while ( cursor ) {
+		while (cursor) {
 			frame_t* tmp = cursor;
 			cursor = cursor->free_next;
 			free(tmp);
@@ -326,12 +324,12 @@ lstop(lua_State* L) {
 	lua_setfield(L, LUA_REGISTRYINDEX, "profiler");
 
 	frame_t* cursor = ctx->freelist;
-	while ( cursor ) {
+	while (cursor) {
 		frame_t* tmp = cursor;
 		cursor = cursor->free_next;
 		free(tmp);
 	}
-	
+
 	lua_pushnumber(L, get_time() - ctx->time_start);
 
 	lua_newtable(L);
@@ -384,8 +382,8 @@ lprofiler_start(lua_State* L) {
 	lua_settop(ctx->pool, 0);
 	lua_newtable(ctx->pool);
 
-	co_t* co_ctx = malloc(sizeof( *co_ctx ));
-	memset(co_ctx, 0, sizeof( *co_ctx ));
+	co_t* co_ctx = malloc(sizeof(*co_ctx));
+	memset(co_ctx, 0, sizeof(*co_ctx));
 
 	ctx->co_ctx = co_ctx;
 	lua_setallocf(L, lalloc, ctx);

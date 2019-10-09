@@ -34,7 +34,7 @@ typedef struct pathfinder {
 } pathfinder_t;
 
 inline double
-dt_dot2dot(int x0,int z0,int x1,int z1) {
+dt_dot2dot(int x0, int z0, int x1, int z1) {
 	double dx = x0 - x1;
 	double dz = z0 - z1;
 	return sqrt(dx * dx + dz * dz);
@@ -45,7 +45,7 @@ search_node(pathfinder_t* finder, int x, int z) {
 	uint32_t dt_min = -1;
 	uint32_t result;
 	uint32_t i;
-	for ( i = 0; i < finder->size;i++ ) {
+	for (i = 0; i < finder->size; i++) {
 		node_t* node = &finder->node[i];
 		uint32_t dt = dt_dot2dot(x, z, node->x, node->z);
 		if (dt_min == -1 || dt < dt_min) {
@@ -60,15 +60,15 @@ static inline void
 find_neighbors(pathfinder_t * finder, node_t * node, node_t** neighbours) {
 
 	uint32_t i;
-	for ( i = 0; i < node->size; i++ ) {
+	for (i = 0; i < node->size; i++) {
 		node_t * nei = &finder->node[node->link[i]];
 
 		if (nei->closed) {
 			continue;
 		}
 
-		nei->next = ( *neighbours );
-		( *neighbours ) = nei;
+		nei->next = (*neighbours);
+		(*neighbours) = nei;
 	}
 }
 
@@ -110,15 +110,15 @@ finder_reset(pathfinder_t* finder) {
 
 static inline int
 less(struct element * left, struct element * right) {
-	node_t *l = (node_t*)( left );
-	node_t *r = (node_t*)( right );
+	node_t *l = (node_t*)(left);
+	node_t *r = (node_t*)(right);
 	return l->F < r->F;
 }
 
 static inline int
 great(struct element * left, struct element * right) {
-	node_t *l = (node_t*)( left );
-	node_t *r = (node_t*)( right );
+	node_t *l = (node_t*)(left);
+	node_t *r = (node_t*)(right);
 	return l->F > r->F;
 }
 
@@ -130,12 +130,11 @@ make_path(pathfinder_t *finder, node_t *current, node_t *from, finder_result cb,
 	assert(parent != NULL);
 
 	current = parent;
-	while ( current ) {
-		if ( current != from ) {
+	while (current) {
+		if (current != from) {
 			parent = current->parent;
 			cb(ud, current->x, current->z);
-		}
-		else {
+		} else {
 			cb(ud, current->x, current->z);
 			break;
 		}
@@ -145,33 +144,33 @@ make_path(pathfinder_t *finder, node_t *current, node_t *from, finder_result cb,
 
 pathfinder_t*
 finder_create(const char* file) {
-	pathfinder_t *finder = (pathfinder_t*)malloc(sizeof( *finder ));
-	memset(finder, 0, sizeof( *finder ));
+	pathfinder_t *finder = (pathfinder_t*)malloc(sizeof(*finder));
+	memset(finder, 0, sizeof(*finder));
 
 	FILE* fp = fopen(file, "rb");
 
-	fread((void*)&finder->size, sizeof( uint32_t ), 1, fp);
+	fread((void*)&finder->size, sizeof(uint32_t), 1, fp);
 
 	finder->node = malloc(sizeof(node_t)* finder->size);
 
 	uint32_t i, j;
-	for ( i = 0; i < finder->size; i++ ) {
+	for (i = 0; i < finder->size; i++) {
 		node_t* node = &finder->node[i];
-		memset(node, 0, sizeof( node_t ));
+		memset(node, 0, sizeof(node_t));
 
-		fread((void*)&node->x, sizeof( uint32_t ), 1, fp);
-		fread((void*)&node->z, sizeof( uint32_t ), 1, fp);
+		fread((void*)&node->x, sizeof(uint32_t), 1, fp);
+		fread((void*)&node->z, sizeof(uint32_t), 1, fp);
 	}
 
-	for ( i = 0; i < finder->size; i++ ) {
+	for (i = 0; i < finder->size; i++) {
 		node_t* node = &finder->node[i];
 
-		fread((void*)&node->size, sizeof( uint32_t ), 1, fp);
+		fread((void*)&node->size, sizeof(uint32_t), 1, fp);
 
-		if ( node->size > 0 ) {
+		if (node->size > 0) {
 			node->link = malloc(sizeof(uint32_t)* node->size);
-			for ( j = 0; j < node->size; j++ )
-				fread((void*)&node->link[j], sizeof( uint32_t ), 1, fp);
+			for (j = 0; j < node->size; j++)
+				fread((void*)&node->link[j], sizeof(uint32_t), 1, fp);
 		}
 	}
 
@@ -190,8 +189,7 @@ finder_create(const char* file) {
 void
 finder_release(pathfinder_t* finder) {
 	uint32_t i;
-	for ( i = 0; i < finder->size;i++ )
-	{
+	for (i = 0; i < finder->size; i++) {
 		node_t* node = &finder->node[i];
 		if (node->link)
 			free(node->link);
@@ -206,19 +204,19 @@ finder_find(pathfinder_t * finder, int x0, int z0, int x1, int z1, finder_result
 	node_t * from = search_node(finder, x0, z0);
 	node_t * to = search_node(finder, x1, z1);
 
-	if ( !from || !to || from == to )
+	if (!from || !to || from == to)
 		return -1;
 
 	mh_push(&finder->openlist, &from->elt);
 
 	node_t * current = NULL;
 
-	while ( ( current = (node_t*)mh_pop(&finder->openlist) ) != NULL ) {
+	while ((current = (node_t*)mh_pop(&finder->openlist)) != NULL) {
 		current->next = finder->closelist;
 		finder->closelist = current;
 		current->closed = 1;
 
-		if ( current == to ) {
+		if (current == to) {
 			make_path(finder, current, from, cb, result_ud);
 			finder_reset(finder);
 			return 1;
@@ -228,24 +226,23 @@ finder_find(pathfinder_t * finder, int x0, int z0, int x1, int z1, finder_result
 
 		find_neighbors(finder, current, &neighbors);
 
-		while ( neighbors ) {
+		while (neighbors) {
 			node_t* node = neighbors;
-			if ( mh_elt_has_init(&node->elt) ) {
+			if (mh_elt_has_init(&node->elt)) {
 				int nG = current->G + g_cost(current, node);
-				if ( nG < node->G ) {
+				if (nG < node->G) {
 					node->G = nG;
 					node->F = node->G + node->H;
 					node->parent = current;
 					mh_adjust(&finder->openlist, &node->elt);
 				}
-			}
-			else {
+			} else {
 				node->parent = current;
 				node->G = current->G + g_cost(current, node);
 				node->H = h_cost(node, to);
 				node->F = node->G + node->H;
 				mh_push(&finder->openlist, &node->elt);
-				if ( dump != NULL )
+				if (dump != NULL)
 					dump(dump_ud, node->x, node->z);
 			}
 

@@ -22,32 +22,32 @@ struct callback_param {
 	int stack;
 };
 
-void 
+void
 entity_enter_cb(int self, int other, void* ud) {
 	struct callback_param* param = ud;
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->stack,param->index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->stack, param->index++);
 }
 
-void 
+void
 entity_leave_cb(int self, int other, void* ud) {
 	struct callback_param* param = ud;
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->stack,param->index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->stack, param->index++);
 }
 
-void 
+void
 trigger_enter_cb(int self, int other, void* ud) {
 	struct callback_param* param = ud;
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->stack,param->index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->stack, param->index++);
 }
 
-void 
+void
 trigger_leave_cb(int self, int other, void* ud) {
 	struct callback_param* param = ud;
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->stack,param->index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->stack, param->index++);
 }
 
 static int
@@ -64,12 +64,12 @@ lcreate_entity(lua_State* L) {
 	param.L = L;
 	param.index = 1;
 	param.stack = lua_gettop(L);
-	
+
 	int id = create_entity(laoi->aoi, uid, mask, x, z, entity_enter_cb, &param);
 
 	lua_pushinteger(L, id);
 	lua_insert(L, param.stack);
-	
+
 	return 2;
 }
 
@@ -131,7 +131,7 @@ lcreate_trigger(lua_State* L) {
 	lua_pushinteger(L, id);
 
 	lua_insert(L, enter_param.stack);
-	
+
 	return 2;
 }
 
@@ -167,11 +167,11 @@ lmove_trigger(lua_State* L) {
 	return 2;
 }
 
-void 
+void
 witness_func(int other, void* ud) {
 	struct callback_param* param = ud;
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->stack,param->index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->stack, param->index++);
 }
 
 static int
@@ -189,11 +189,11 @@ lget_witness(lua_State* L) {
 	return 1;
 }
 
-void 
+void
 visible_func(int other, void* ud) {
 	struct callback_param* param = ud;
-	lua_pushinteger(param->L,other);
-	lua_rawseti(param->L,param->stack,param->index++);
+	lua_pushinteger(param->L, other);
+	lua_rawseti(param->L, param->stack, param->index++);
 }
 
 static int
@@ -248,7 +248,7 @@ lcreate(lua_State* L) {
 		{ "get_visible", lget_visible },
 		{ NULL, NULL },
 	};
-	luaL_newlib(L,l);
+	luaL_newlib(L, l);
 
 	lua_setfield(L, -2, "__index");
 
@@ -258,11 +258,11 @@ lcreate(lua_State* L) {
 }
 
 int
-luaopen_toweraoi_core(lua_State* L){
+luaopen_toweraoi_core(lua_State* L) {
 	luaL_Reg l[] = {
 		{ "create", lcreate },
 		{ NULL, NULL },
 	};
-	luaL_newlib(L,l);
+	luaL_newlib(L, l);
 	return 1;
 }

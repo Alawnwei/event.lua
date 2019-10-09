@@ -59,7 +59,7 @@ tree_set(tree_hash_t* hash, utf8_int32_t utf8, tree_t* tree) {
 tree_t*
 tree_get(tree_hash_t* hash, utf8_int32_t utf8) {
 	khiter_t k = kh_get(word, hash, utf8);
-	if ( k == kh_end(hash) ) {
+	if (k == kh_end(hash)) {
 		return NULL;
 	}
 	return kh_value(hash, k);
@@ -69,27 +69,26 @@ void
 word_add(tree_t* root_tree, const char* word, size_t size) {
 	tree_t* tree = root_tree;
 	size_t i;
-	for ( i = 0; i < size; ) {
+	for (i = 0; i < size;) {
 		utf8_int32_t utf8 = 0;
 		word = utf8codepoint(word, &utf8);
 		int length = utf8codepointsize(utf8);
 		i += length;
 
 		tree_t* child_tree = tree_get(tree->hash, utf8);
-		if ( !child_tree ) {
-			child_tree = malloc(sizeof( *tree ));
+		if (!child_tree) {
+			child_tree = malloc(sizeof(*tree));
 			child_tree->tail = 0;
 			child_tree->hash = kh_init(word);
 
 			tree_set(tree->hash, utf8, child_tree);
 
 			tree = child_tree;
-		}
-		else {
+		} else {
 			tree = child_tree;
 		}
 
-		if ( i == size ) {
+		if (i == size) {
 			tree->tail = 1;
 		}
 	}
@@ -99,14 +98,14 @@ void
 word_delete(tree_t* root_tree, const char* word, size_t size) {
 	tree_t* tree = root_tree;
 	size_t i;
-	for ( i = 0; i < size; ) {
+	for (i = 0; i < size;) {
 		utf8_int32_t utf8 = 0;
 		word = utf8codepoint(word, &utf8);
 		int length = utf8codepointsize(utf8);
 		i += length;
 
 		tree = tree_get(tree->hash, utf8);
-		if ( !tree ) {
+		if (!tree) {
 			return;
 		}
 	}
@@ -117,14 +116,14 @@ tree_t*
 word_search(tree_t* root_tree, const char* word, size_t size) {
 	tree_t* tree = root_tree;
 	size_t i;
-	for ( i = 0; i < size; ) {
+	for (i = 0; i < size;) {
 		utf8_int32_t utf8 = 0;
 		word = utf8codepoint(word, &utf8);
 		int length = utf8codepointsize(utf8);
 		i += length;
 
 		tree = tree_get(tree->hash, utf8);
-		if ( !tree ) {
+		if (!tree) {
 			return NULL;
 		}
 	}
@@ -144,97 +143,93 @@ word_filter(tree_t* root_tree, const char* source, size_t size, luaL_Buffer* buf
 	int phase = PHASE_SEARCH;
 
 	size_t position = 0;
-	while ( position < size ) {
+	while (position < size) {
 		utf8_int32_t utf8 = 0;
 		utf8codepoint(source + position, &utf8);
 		int length = utf8codepointsize(utf8);
 		position += length;
 
-		switch ( phase ) {
+		switch (phase) {
 			case PHASE_SEARCH: {
-			   tree = tree_get(tree->hash, utf8);
-			   if ( tree ) {
-				   phase = PHASE_MATCH;
-				   start = position - length;
-				   rollback = position;
-				   filter_length = 1;
-				   filter_slider = 1;
-				   founded = 0;
-				   if ( tree->tail ) {
-					   if ( !buffer ) {
-						   return -1;
-					   }
-					   founded = 1;
-				   }
-			   }
-			   else {
-				   tree = root_tree;
-				   if ( buffer ) {
-					   char word[8] = { 0 };
-					   utf8catcodepoint(word, utf8, 8);
-					   luaL_addlstring(buffer, word, length);
-				   }
-			   }
-			   break;
+				tree = tree_get(tree->hash, utf8);
+				if (tree) {
+					phase = PHASE_MATCH;
+					start = position - length;
+					rollback = position;
+					filter_length = 1;
+					filter_slider = 1;
+					founded = 0;
+					if (tree->tail) {
+						if (!buffer) {
+							return -1;
+						}
+						founded = 1;
+					}
+				} else {
+					tree = root_tree;
+					if (buffer) {
+						char word[8] = { 0 };
+						utf8catcodepoint(word, utf8, 8);
+						luaL_addlstring(buffer, word, length);
+					}
+				}
+				break;
 			}
 			case PHASE_MATCH: {
-				  if ( length == 1 ) {
-					  if ( isspace(utf8) || iscntrl(utf8) || ispunct(utf8) ) {
-						  ++filter_slider;
-						  continue;
-					  }
-				  }
-				  tree = tree_get(tree->hash, utf8);
-				  if ( tree ) {
-					  ++filter_slider;
-					  if ( tree->tail ) {
-						  if ( !buffer ) {
-							  return -1;
-						  }
-						  filter_length = filter_slider;
-						  rollback = position;
-						  founded = 1;
-					  }
-				  }
-				  else {
-					  if ( founded == 1 ) {
-						  //匹配成功
-						  if (!buffer) {
-							  return -1;
-						  }
-				
-						  int i;
-						  for ( i = 0; i < filter_length; i++ ) {
-							  luaL_addchar(buffer, '*');
-						  }
-					  }
-					  else if ( buffer ) {
-						  //匹配失败
-						  luaL_addlstring(buffer, source + start, rollback - start);
-					  }
-					  //回滚
-					  position = rollback;
-					  tree = root_tree;
-					  phase = PHASE_SEARCH;
-				  }
-				  break;
+				if (length == 1) {
+					if (isspace(utf8) || iscntrl(utf8) || ispunct(utf8)) {
+						++filter_slider;
+						continue;
+					}
+				}
+				tree = tree_get(tree->hash, utf8);
+				if (tree) {
+					++filter_slider;
+					if (tree->tail) {
+						if (!buffer) {
+							return -1;
+						}
+						filter_length = filter_slider;
+						rollback = position;
+						founded = 1;
+					}
+				} else {
+					if (founded == 1) {
+						//匹配成功
+						if (!buffer) {
+							return -1;
+						}
+
+						int i;
+						for (i = 0; i < filter_length; i++) {
+							luaL_addchar(buffer, '*');
+						}
+					} else if (buffer) {
+						//匹配失败
+						luaL_addlstring(buffer, source + start, rollback - start);
+					}
+					//回滚
+					position = rollback;
+					tree = root_tree;
+					phase = PHASE_SEARCH;
+				}
+				break;
 			}
 		}
 	}
 
-	if ( !buffer ) {
+	if (!buffer) {
 		return 0;
 	}
 
-	if ( phase == PHASE_MATCH ) {
-		if ( founded == 1 ) {
+	if (phase == PHASE_MATCH) {
+		if (founded == 1) {
 			int i;
-			for ( i = 0; i < filter_length; i++ ) {
+			for (i = 0; i < filter_length; i++) {
 				luaL_addchar(buffer, '*');
 			}
 			luaL_addlstring(buffer, source + rollback, size - rollback);
-		}
-		else {
+		} else {
 			luaL_addlstring(buffer, source + start, position - start);
 		}
 	}
@@ -244,7 +239,7 @@ word_filter(tree_t* root_tree, const char* source, size_t size, luaL_Buffer* buf
 
 static int
 lcreate(lua_State* L) {
-	tree_t* tree = lua_newuserdata(L, sizeof( *tree ));
+	tree_t* tree = lua_newuserdata(L, sizeof(*tree));
 	tree->hash = kh_init(word);
 	luaL_newmetatable(L, "meta_trie");
 	lua_setmetatable(L, -2);
@@ -253,7 +248,7 @@ lcreate(lua_State* L) {
 
 void
 release(utf8_int32_t utf8, tree_t* tree) {
-	if ( tree->hash ) {
+	if (tree->hash) {
 		tree_t* child = NULL;
 		kh_foreach(tree->hash, utf8, child, release(utf8, child));
 		kh_destroy(word, tree->hash);
@@ -311,7 +306,7 @@ lfilter(lua_State* L) {
 	return 1;
 }
 
-static void 
+static void
 buffer_init(search_ctx_t* search_ctx) {
 	search_ctx->offset = 0;
 }
@@ -323,20 +318,20 @@ buffer_add(search_ctx_t* search_ctx, const char* str, size_t l) {
 		if (nsize < search_ctx->offset + l) {
 			nsize = search_ctx->offset + l;
 		}
-		search_ctx->buffer = (char*)realloc(search_ctx->buffer,nsize);
+		search_ctx->buffer = (char*)realloc(search_ctx->buffer, nsize);
 		search_ctx->size = nsize;
 	}
-	memcpy(search_ctx->buffer+search_ctx->offset,str,l);
-	search_ctx->offset+=l;
+	memcpy(search_ctx->buffer + search_ctx->offset, str, l);
+	search_ctx->offset += l;
 }
 
 static void
 merge_word(search_ctx_t* search_ctx, utf8_link_t* link, tree_t* tree) {
-	if ( tree->tail == 1 ) {
+	if (tree->tail == 1) {
 		buffer_init(search_ctx);
 		buffer_add(search_ctx, search_ctx->prefix, search_ctx->prefix_size);
 		utf8_node_t* cursor = link->head;
-		while ( cursor ) {
+		while (cursor) {
 			char word[8] = { 0 };
 			utf8catcodepoint(word, cursor->utf8, 8);
 			buffer_add(search_ctx, word, strlen(word));
@@ -388,7 +383,7 @@ lsearch(lua_State* L) {
 		free(search_ctx.buffer);
 		return 1;
 	}
-	
+
 	utf8_int32_t utf8;
 	tree_t* child;
 
@@ -416,7 +411,7 @@ lsplit(lua_State* L) {
 
 	int index = 1;
 	size_t i;
-	for ( i = 0; i < size; ) {
+	for (i = 0; i < size;) {
 		utf8_int32_t utf8 = 0;
 		char* next = utf8codepoint(word, &utf8);
 		size_t length = utf8codepointsize(utf8);
@@ -432,10 +427,10 @@ lsplit(lua_State* L) {
 void
 dump(utf8_int32_t utf8, tree_t* tree, int depth, FILE* f) {
 	int i;
-	for ( i = 0; i < depth; i++ ) {
+	for (i = 0; i < depth; i++) {
 		const char* t = "  ";
 		printf(t);
-		if ( f ) {
+		if (f) {
 			fwrite(t, strlen(t), 1, f);
 		}
 	}
@@ -445,12 +440,12 @@ dump(utf8_int32_t utf8, tree_t* tree, int depth, FILE* f) {
 	word[strlen(word)] = '\n';
 
 	printf("%s", word);
-	if ( f ) {
+	if (f) {
 		fwrite(word, strlen(word), 1, f);
 	}
 
 	depth++;
-	if ( tree->hash ) {
+	if (tree->hash) {
 		tree_t* child = NULL;
 		kh_foreach(tree->hash, utf8, child, dump(utf8, child, depth, f));
 	}
@@ -460,7 +455,7 @@ static int
 ldump(lua_State* L) {
 	tree_t* tree = lua_touserdata(L, 1);
 	const char* file = NULL;
-	if ( lua_type(L, 2) == LUA_TSTRING ) {
+	if (lua_type(L, 2) == LUA_TSTRING) {
 		file = lua_tostring(L, 2);
 	}
 
@@ -474,15 +469,15 @@ ldump(lua_State* L) {
 	}
 
 	kh_foreach(tree->hash, utf8, child, dump(utf8, child, depth, f));
-	
+
 	if (file) {
 		fclose(f);
 	}
-	
+
 	return 0;
 }
 
-int 
+int
 luaopen_trie(lua_State *L) {
 	luaL_checkversion(L);
 

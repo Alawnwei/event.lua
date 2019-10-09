@@ -1,56 +1,56 @@
 #include "lock.h"
 
-void 
+void
 mutex_init(mutex_t* mutex) {
 	pthread_mutex_init(&mutex->lock, NULL);
 }
 
-void 
+void
 mutex_destroy(mutex_t* mutex) {
 	pthread_mutex_destroy(&mutex->lock);
 }
 
-void 
+void
 mutex_lock(mutex_t* mutex) {
 	pthread_mutex_lock(&mutex->lock);
 }
 
-void 
+void
 mutex_unlock(mutex_t* mutex) {
 	pthread_mutex_unlock(&mutex->lock);
 }
 
-int 
+int
 mutex_trylock(mutex_t* mutex) {
 	return pthread_mutex_trylock(&mutex->lock);
 }
 
-void 
+void
 cond_init(cond_t* cond) {
-	pthread_cond_init(&cond->cond,NULL);
+	pthread_cond_init(&cond->cond, NULL);
 }
 
-void 
+void
 cond_destroy(cond_t* cond) {
 	pthread_cond_destroy(&cond->cond);
 }
 
-void 
+void
 cond_notify_one(cond_t* cond) {
 	pthread_cond_signal(&cond->cond);
 }
 
-void 
+void
 cond_notify_all(cond_t* cond) {
 	pthread_cond_broadcast(&cond->cond);
 }
 
-void 
+void
 cond_wait(cond_t* cond, mutex_t* mutex) {
 	pthread_cond_wait(&cond->cond, &mutex->lock);
 }
 
-void 
+void
 cond_timed_wait(cond_t* cond, mutex_t* mutex, int millis) {
 	struct timespec timeout;
 	clock_gettime(CLOCK_REALTIME, &timeout);
