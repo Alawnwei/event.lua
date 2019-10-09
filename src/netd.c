@@ -54,6 +54,7 @@ typedef struct client {
 	netd_t* netd;
 	struct ev_session* session;
 	struct ev_timer timer;
+	const char* addr;
 	uint32_t id;
 	uint32_t countor;
 	uint32_t need;
@@ -180,7 +181,6 @@ netd_create(struct ev_loop_ctx* loop_ctx, int id, uint32_t max_client, uint32_t 
 
 void
 netd_release(netd_t* netd) {
-	netd_client_stop(netd);
 	netd_server_stop(netd);
 	container_foreach(netd->container, netd_client_release);
 	container_release(netd->container);
@@ -311,6 +311,7 @@ netd_client_accept(struct ev_listener *listener, int fd, const char* addr, void 
 		netd->index = 1;
 	}
 
+	client->addr = strdup(addr);
 	client->netd = netd;
 	client->session = session;
 	client->id = index * netd->max_offset + slot;
@@ -363,8 +364,11 @@ netd_client_read(struct ev_session* ev_session, void* ud) {
 				return;
 			}
 
+			int needfree = 1;
+
 			uint8_t* data = (uint8_t*)ev_session_read_peek(client->session, client->need);
 			if (!data) {
+				needfree = 0;
 				data = get_buffer(client->need);
 				ev_session_read(client->session, (char*)data, client->need);
 			}
@@ -383,7 +387,9 @@ netd_client_read(struct ev_session* ev_session, void* ud) {
 
 			client->need = 0;
 
-			free_buffer(data);
+			if (needfree) {
+				free_buffer(data);
+			}
 		}
 	}
 }
@@ -392,7 +398,7 @@ static void
 netd_client_handle_message(client_t* client, uint16_t message_id, uint8_t* data, size_t sz) {
 	stream_writer writer = writer_init(sizeof(int) * 2 + sizeof(uint16_t) * 2 + sz);
 	write_uint32(&writer, 0);
-	write_uint16(&writer, kCMD_CLIENT_LEAVE);
+	write_uint16(&writer, kCMD_CLIENT_DATA);
 	write_uint32(&writer, client->id);
 	write_uint16(&writer, message_id);
 	write_buffer(&writer, data, sz);
@@ -433,6 +439,7 @@ netd_client_release(int id, void* data) {
 	uint32_t slot = SLOT(client->id, client->netd->max_offset);
 	container_remove(client->netd->container, slot);
 	client->netd->count--;
+	free((void*)client->addr);
 	free(client);
 }
 
@@ -457,14 +464,29 @@ netd_client_update(struct ev_loop* loop, struct ev_timer* io, int revents) {
 }
 
 int
-netd_server_start(netd_t* netd, const char* file) {
+netd_server_start_with_unix(netd_t* netd, const char* file) {
 	unlink(file);
 	struct sockaddr_un un;
 	un.sun_family = AF_UNIX;
 	strcpy(un.sun_path, file);
 
-	int flag = SOCKET_OPT_NOBLOCK | SOCKET_OPT_CLOSE_ON_EXEC;
+	int flag = SOCKET_OPT_NOBLOCK | SOCKET_OPT_CLOSE_ON_EXEC | SOCKET_OPT_REUSEABLE_ADDR;
 	netd->server_listener = ev_listener_create(netd->loop_ctx, (struct sockaddr*)&un, sizeof(un), 16, flag, netd_server_accept, netd);
+	if (!netd->server_listener) {
+		return -1;
+	}
+	return 0;
+}
+
+int
+netd_server_start(netd_t* netd, const char* ip, uint16_t port) {
+	struct sockaddr_in in;
+	in.sin_family = AF_INET;
+	in.sin_addr.s_addr = inet_addr(ip);
+	in.sin_port = htons(port);
+
+	int flag = SOCKET_OPT_NOBLOCK | SOCKET_OPT_CLOSE_ON_EXEC | SOCKET_OPT_REUSEABLE_ADDR;
+	netd->server_listener = ev_listener_create(netd->loop_ctx, (struct sockaddr*)&in, sizeof(in), 16, flag, netd_server_accept, netd);
 	if (!netd->server_listener) {
 		return -1;
 	}
@@ -485,16 +507,17 @@ static void
 netd_server_send(netd_t* netd, int server_id, uint8_t* data, size_t sz) {
 	server_t* server = netd->server_slot[server_id];
 	if (!server) {
+		fprintf(stderr, "no server:%d found\n", server_id);
 		free(data);
 		return;
 	}
-	*(int*)data = sz + sizeof(int);
+	*(int*)data = sz;
 	ev_session_write(server->session, (char*)data, sz);
 }
 
 static void
 netd_server_broadcast(netd_t* netd, uint8_t* data, size_t sz) {
-	*(int*)data = sz + sizeof(int);
+	*(int*)data = sz;
 	int i;
 	for (i = 0; i < kMAX_SERVER; i++) {
 		server_t* server = netd->server_slot[i];
@@ -561,18 +584,22 @@ netd_server_read(struct ev_session* ev_session, void* ud) {
 				return;
 			}
 
+			int needfree = 0;
 			uint8_t* data = (uint8_t*)ev_session_read_peek(server->session, server->need);
 			if (!data) {
+				needfree = 1;
 				data = get_buffer(server->need);
 				ev_session_read(server->session, (char*)data, server->need);
 			}
 
-			uint16_t id = data[2] | data[3] << 8;
-			stream_reader reader = reader_init(&data[4], server->need - 4);
+			uint16_t id = data[0] | data[1] << 8;
+			stream_reader reader = reader_init(&data[2], server->need - 2);
 			netd_server_handle_cmd(server, id, &reader);
 
 			server->need = 0;
-			free_buffer(data);
+			if (needfree) {
+				free_buffer(data);
+			}
 		}
 	}
 }
@@ -602,6 +629,7 @@ netd_server_release(server_t* server) {
 
 static void
 netd_server_handle_cmd(server_t* server, uint16_t cmd, stream_reader* reader) {
+	printf("handle server cmd:%d\n", cmd);
 	if (server->id < 0) {
 		assert(cmd == kCMD_REGISTER);
 	}
@@ -616,10 +644,13 @@ netd_server_register(server_t* server, stream_reader* reader) {
 	}
 	server->id = id;
 	server->netd->server_slot[id] = server;
+	fprintf(stderr, "server:%d register\n", id);
 }
 
 static void
 netd_server_login_master_register(server_t* server, stream_reader* reader) {
+	printf("netd_server_login_master_register\n");
+
 	int id = read_int32(reader);
 	assert(id == server->id);
 	stream_writer writer = writer_init(64);
@@ -694,7 +725,7 @@ int main() {
 		fprintf(stderr, "netd client start error:%s\n", strerror(errno));
 		exit(1);
 	}
-	if (netd_server_start(netd, "netd01.ipc") < 0) {
+	if (netd_server_start(netd, "127.0.0.1", 10000) < 0) {
 		fprintf(stderr, "netd server start error:%s\n", strerror(errno));
 		exit(1);
 	}
