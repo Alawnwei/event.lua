@@ -57,8 +57,6 @@ TARGET ?= event
 
 NETD ?= netd
 
-GAME ?= game
-
 CC=gcc
 CFLAGS=-g -Wall -fno-omit-frame-pointer -Wno-unused-local-typedefs $(DEFINE)
 
@@ -129,9 +127,6 @@ $(TARGET) : $(MAIN_OBJ) $(STATIC_LIBS) $(LIBEV_SHARE_LIB)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -I./$(LIBEV_INC) -Wl,-E
 
 $(NETD) : $(NETD_OBJ) $(STATIC_LIBS) $(LIBEV_STATIC_LIB)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -I./$(LIBEV_INC) -Wl,-E
-
-$(GAME) : $(GAME_OBJ) $(STATIC_LIBS) $(LIBEV_STATIC_LIB)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -I./$(LIBEV_INC) -Wl,-E
 
 $(LUA_CLIB_PATH)/ev.so : $(LUA_CLIB_SRC)/lua-ev.c $(LUA_CLIB_SRC)/lua-gate.c $(LUA_CLIB_SRC)/common/common.c $(LUA_CLIB_SRC)/socket/gate.c $(LUA_CLIB_SRC)/common/encrypt.c $(LUA_CLIB_SRC)/socket/socket_tcp.c $(LUA_CLIB_SRC)/socket/socket_udp.c $(LUA_CLIB_SRC)/socket/socket_pipe.c $(LUA_CLIB_SRC)/socket/socket_util.c $(LUA_CLIB_SRC)/socket/socket_httpc.c $(LUA_CLIB_SRC)/socket/dns_resolver.c $(LUA_CLIB_SRC)/common/object_container.c $(LUA_CLIB_SRC)/common/string.c $(LUA_CLIB_SRC)/socket/ring_buffer.c $(LIBEV_SHARE_LIB) $(LIBCURL_SHARE_LIB) $(LIBARES_SHARE_LIB) | $(LUA_CLIB_PATH)
@@ -209,11 +204,9 @@ $(LUA_CLIB_PATH)/snapshot.so : $(LUA_CLIB_SRC)/lua-snapshot.c | $(LUA_CLIB_PATH)
 clean :
 	rm -rf $(TARGET) $(TARGET).raw
 	rm -rf $(NETD)
-	rm -rf $(GAME)
 	rm -rf $(LUA_CLIB_PATH)
 	rm -rf $(MAIN_OBJ)
 	rm -rf $(NETD_OBJ)
-	rm -rf $(GAME_OBJ)
 	rm -rf luaclib/convert/milo/*.o
 	rm -rf luaclib/convert/double-conversion/*.o
 

@@ -3,6 +3,7 @@
 #include "socket/socket_tcp.h"
 #include "common/encrypt.h"
 #include "common/object_container.h"
+#include <stdint.h>
 
 
 #define kCACHED      		1024 * 1024
@@ -364,11 +365,10 @@ netd_client_read(struct ev_session* ev_session, void* ud) {
 				return;
 			}
 
-			int needfree = 1;
-
+			int peekok = 1;
 			uint8_t* data = (uint8_t*)ev_session_read_peek(client->session, client->need);
 			if (!data) {
-				needfree = 0;
+				peekok = 0;
 				data = get_buffer(client->need);
 				ev_session_read(client->session, (char*)data, client->need);
 			}
@@ -387,7 +387,7 @@ netd_client_read(struct ev_session* ev_session, void* ud) {
 
 			client->need = 0;
 
-			if (needfree) {
+			if (!peekok) {
 				free_buffer(data);
 			}
 		}
@@ -563,7 +563,6 @@ netd_server_read(struct ev_session* ev_session, void* ud) {
 			}
 
 			uint8_t stack[kSERVER_HEADER] = { 0 };
-
 			uint8_t* header = (uint8_t*)ev_session_read_peek(server->session, kSERVER_HEADER);
 			if (!header) {
 				ev_session_read(server->session, (char*)stack, kSERVER_HEADER);
@@ -584,10 +583,10 @@ netd_server_read(struct ev_session* ev_session, void* ud) {
 				return;
 			}
 
-			int needfree = 0;
+			int peekok = 1;
 			uint8_t* data = (uint8_t*)ev_session_read_peek(server->session, server->need);
 			if (!data) {
-				needfree = 1;
+				peekok = 0;
 				data = get_buffer(server->need);
 				ev_session_read(server->session, (char*)data, server->need);
 			}
@@ -597,7 +596,7 @@ netd_server_read(struct ev_session* ev_session, void* ud) {
 			netd_server_handle_cmd(server, id, &reader);
 
 			server->need = 0;
-			if (needfree) {
+			if (!peekok) {
 				free_buffer(data);
 			}
 		}
