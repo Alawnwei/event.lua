@@ -93,12 +93,24 @@ read_int64(stream_reader* reader) {
 }
 
 inline char*
-read_string(stream_reader* reader, size_t sz) {
-	char* result;
+read_string(stream_reader* reader, size_t* sz) {
+	size_t i = 0;
+	for (i = 0; i < reader->size; i++) {
+		if (reader->data[reader->offset + i] == 0) {
+			reader->offset += (i + 1);
+			*sz = i;
+			return (char*)reader->data;
+		}
+	}
+	assert(0);
+	return NULL;
+}
+
+inline uint8_t*
+read_buffer(stream_reader* reader, size_t sz) {
 	assert(reader->size - reader->offset >= sz);
-	result = (char*)reader->data;
 	reader->offset += sz;
-	return result;
+	return reader->data;
 }
 
 inline stream_writer
@@ -186,7 +198,17 @@ write_int64(stream_writer* writer, int64_t val) {
 }
 
 inline void
-write_string(stream_writer* writer, char* val, size_t sz) {
+write_string(stream_writer* writer, const char* val) {
+	size_t len = strlen(val);
+	writer_reserve(writer, len);
+	memcpy((void*)&writer->data[writer->offset], val, len);
+	writer->offset += len;
+	writer->data[writer->offset] = 0;
+	writer->offset += 1;
+}
+
+inline void
+write_buffer(stream_writer* writer, uint8_t* val, size_t sz) {
 	writer_reserve(writer, sz);
 	memcpy((void*)&writer->data[writer->offset], val, sz);
 	writer->offset += sz;

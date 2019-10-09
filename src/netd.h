@@ -14,17 +14,18 @@
 
 #define kCMD_UPDATE_LOGIN_MASTER  0
 #define kCMD_UPDATE_SCENE_MASTER  1
+#define kCMD_CLIENT_ENTER         2
+#define kCMD_CLIENT_LEAVE         3
+#define kCMD_CLIENT_DATA          4
 
 struct netd;
-struct client;
 
 struct netd* netd_create(struct ev_loop_ctx* loop_ctx, uint32_t max_client, uint32_t max_freq, uint32_t timeout);
 void netd_release(struct netd* netd);
+
 int netd_client_start(struct netd* netd, const char* ip, int port);
 int netd_client_stop(struct netd* netd);
-struct client* netd_client_get(struct netd* netd, uint32_t id);
-int netd_client_close(struct netd* netd, uint32_t client_id, int grace);
-int netd_client_send(struct netd* netd, uint32_t client_id, void* data, size_t size);
 
+int netd_server_start(struct netd* netd, const char* file);
 int netd_server_stop(struct netd* netd);
 #endif
