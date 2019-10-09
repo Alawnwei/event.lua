@@ -1,5 +1,7 @@
 #include "netd.h"
 #include "stream.h"
+#include "lua.h"
+#include "lauxlib.h"
 #include "socket/socket_tcp.h"
 #include "common/encrypt.h"
 #include "common/object_container.h"
@@ -76,6 +78,18 @@ typedef struct server {
 	struct server* next;
 } server_t;
 
+typedef struct conf {
+	int id;
+	char* client_ip;
+	uint16_t client_port;
+	char* server_ip;
+	uint16_t server_port;
+	char* server_ipc;
+	int max_client;
+	int max_freq;
+	int max_alive;
+} conf_t;
+
 typedef void(*server_cmd_func)(server_t* server, stream_reader* reader);
 
 static void netd_update(struct ev_loop* loop, struct ev_timer* io, int revents);
@@ -118,6 +132,8 @@ static server_cmd_func g_server_cmd[] = {
 };
 
 __thread uint8_t t_cached[kCACHED];
+
+conf_t g_conf;
 
 static inline uint8_t*
 get_buffer(uint32_t size) {
@@ -716,18 +732,75 @@ netd_server_client_close(server_t* server, stream_reader* reader) {
 	netd_client_close(netd, client_id, 1);
 }
 
-int main() {
+static void
+init_conf(const char* file) {
+	memset(&g_conf, 0, sizeof(g_conf));
+
+	lua_State* L = luaL_newstate();
+	if (luaL_loadfile(L, file) != LUA_OK) {
+		fprintf(stderr, "load config:%s\n", lua_tostring(L, -1));
+		exit(1);
+	}
+
+	if (lua_pcall(L, 0, 1, 0) != LUA_OK) {
+		fprintf(stderr, "load config:%s\n", lua_tostring(L, -1));
+		exit(1);
+	}
+
+	luaL_checktype(L, -1, LUA_TTABLE);
+
+#define GET_CONF_INT(L, field, value) \
+	lua_getfield(L, -1, #field);\
+	if (lua_type(L, -1) == LUA_TNUMBER) {\
+		g_conf.field = lua_tointeger(L, -1);\
+	} else {\
+		g_conf.field = value;\
+	}\
+	lua_pop(L, 1);\
+
+#define GET_CONF_STR(L, field) \
+	lua_getfield(L, -1, #field);\
+	if (lua_type(L, -1) == LUA_TSTRING) {\
+		g_conf.field = strdup(lua_tostring(L, -1));\
+	}\
+	lua_pop(L, 1);\
+
+	GET_CONF_INT(L, id, 1);
+	GET_CONF_STR(L, client_ip);
+	GET_CONF_INT(L, client_port, 8888);
+	GET_CONF_STR(L, server_ip);
+	GET_CONF_INT(L, server_port, 9999);
+	GET_CONF_STR(L, server_ipc);
+	GET_CONF_INT(L, max_client, 100);
+	GET_CONF_INT(L, max_freq, 100);
+	GET_CONF_INT(L, max_alive, 60);
+
+	lua_close(L);
+}
+
+int main(int argc, const char* argv[]) {
+	assert(argc == 2);
+	init_conf(argv[1]);
+
 	struct ev_loop_ctx* loop_ctx = loop_ctx_create();
 
-	netd_t* netd = netd_create(loop_ctx, 0, 1000, 100, 60);
-	if (netd_client_start(netd, "0.0.0.0", 9999) < 0) {
+	netd_t* netd = netd_create(loop_ctx, g_conf.id, g_conf.max_client, g_conf.max_freq, g_conf.max_alive);
+	if (netd_client_start(netd, g_conf.client_ip, g_conf.client_port) < 0) {
 		fprintf(stderr, "netd client start error:%s\n", strerror(errno));
 		exit(1);
 	}
-	if (netd_server_start(netd, "127.0.0.1", 10000) < 0) {
-		fprintf(stderr, "netd server start error:%s\n", strerror(errno));
-		exit(1);
+	if (g_conf.server_ipc) {
+		if (netd_server_start_with_unix(netd, g_conf.server_ipc) < 0) {
+			fprintf(stderr, "netd server start error:%s\n", strerror(errno));
+			exit(1);
+		}
+	} else {
+		if (netd_server_start(netd, g_conf.server_ip, g_conf.server_port) < 0) {
+			fprintf(stderr, "netd server start error:%s\n", strerror(errno));
+			exit(1);
+		}
 	}
+
 	loop_ctx_dispatch(loop_ctx);
 
 	netd_release(netd);
