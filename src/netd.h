@@ -12,6 +12,9 @@
 #define kCMD_CLIENT_BROAD   5
 #define kCMD_CLIENT_CLOSE   6
 
+#define kCMD_UPDATE_LOGIN_MASTER  0
+#define kCMD_UPDATE_SCENE_MASTER  1
+
 struct netd;
 struct client;
 
