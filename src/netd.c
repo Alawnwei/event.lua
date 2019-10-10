@@ -645,6 +645,11 @@ static void
 netd_server_register(server_t* server, stream_reader* reader) {
 	int id = read_int32(reader);
 	if (server->netd->server_slot[id] || id >= kMAX_SERVER) {
+		stream_writer writer = writer_init(sizeof(uint32_t) + sizeof(int32_t) + sizeof(uint16_t));
+		write_uint32(&writer, writer.size);
+		write_uint16(&writer, kCMD_SERVER_REPEAT);
+		write_int32(&writer, id);
+		ev_session_write(server->session, (char*)writer.data, writer.offset);
 		return;
 	}
 	server->id = id;

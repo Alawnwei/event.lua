@@ -2,6 +2,7 @@
 #include "stream.h"
 #include "lua.h"
 #include "lauxlib.h"
+#include "lualib.h"
 #include "socket/socket_tcp.h"
 #include "common/encrypt.h"
 #include "common/object_container.h"
@@ -14,6 +15,7 @@ typedef struct game {
 	int type;
 	int login_master_id;
 	int scene_master_id;
+	int netd_num;
 
 	struct ev_loop_ctx* loop_ctx;
 	struct ev_timer timer;
@@ -22,6 +24,10 @@ typedef struct game {
 	struct netd* netd_slot[kMAX_NETD];
 
 	char error[kERROR];
+
+	double last_update;
+
+	lua_State* L;
 
 	struct netd* deadnetd;
 } game_t;
@@ -47,7 +53,6 @@ typedef struct conf {
 	char* netd_ip;
 	uint16_t netd_port;
 	char* netd_ipc;
-
 } conf_t;
 
 static game_t* g_game = NULL;
@@ -70,10 +75,10 @@ free_buffer(uint8_t* buffer) {
 	}
 }
 
-static game_t* game_create(int id, int type);
+static game_t* game_create(struct ev_loop_ctx* loop_ctx, int id, int type);
 static void game_release(game_t* game);
 static void game_update(struct ev_loop* loop, struct ev_timer* io, int revents);
-static void game_init(game_t* game);
+static void game_init(game_t* game, int netd_num);
 static int game_connect_netd(game_t* game, int index, int nonblock);
 static void game_netd_handle_connect(game_t* game, int index, int fd);
 static void game_netd_complete_connect(struct ev_connecter* connecter, int fd, const char* reason, void *userdata);
@@ -82,16 +87,37 @@ static void game_netd_exit(netd_t* netd, const char* reason);
 static void game_netd_error(struct ev_session* session, void* ud);
 static void game_netd_release(netd_t* netd);
 static void game_netd_handle_cmd(netd_t* netd, uint16_t cmd, stream_reader* reader);
+static void game_netd_client_enter(netd_t* netd, stream_reader* reader);
+static void game_netd_client_leave(netd_t* netd, stream_reader* reader);
+static void game_netd_client_data(netd_t* netd, stream_reader* reader);
+static void game_netd_update_login_master(netd_t* netd, stream_reader* reader);
+static void game_netd_update_scene_master(netd_t* netd, stream_reader* reader);
+static void game_netd_server_down(netd_t* netd, stream_reader* reader);
+static void game_netd_server_repeat(netd_t* netd, stream_reader* reader);
 
 typedef void(*netd_cmd_func)(netd_t* netd, stream_reader* reader);
 
 static netd_cmd_func g_netd_cmd[] = {
-
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	game_netd_server_down,
+	game_netd_server_repeat,
+	game_netd_update_login_master,
+	game_netd_update_scene_master,
+	game_netd_client_enter,
+	game_netd_client_leave,
+	game_netd_client_data,
 };
 
 
 static game_t*
-game_create(int id, int type) {
+game_create(struct ev_loop_ctx* loop_ctx, int id, int type) {
 	game_t* game = malloc(sizeof(*game));
 	memset(game, 0, sizeof(*game));
 
@@ -100,9 +126,15 @@ game_create(int id, int type) {
 	game->login_master_id = -1;
 	game->scene_master_id = -1;
 
+	game->loop_ctx = loop_ctx;
+
 	game->timer.data = game;
 	ev_timer_init(&game->timer, game_update, 0.01f, 0.01f);
 	ev_timer_start(loop_ctx_get(game->loop_ctx), &game->timer);
+
+	lua_State* L = luaL_newstate();
+	luaL_openlibs(L);
+	game->L = L;
 
 	g_game = game;
 	return game;
@@ -110,7 +142,12 @@ game_create(int id, int type) {
 
 static void
 game_release(game_t* game) {
+	lua_getglobal(game->L, "game_fina");
+	if (lua_pcall(game->L, 0, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
+	}
 	ev_timer_stop(loop_ctx_get(game->loop_ctx), (struct ev_timer*)&game->timer);
+	lua_close(game->L);
 	free(game);
 }
 
@@ -119,12 +156,41 @@ static void
 game_update(struct ev_loop* loop, struct ev_timer* io, int revents) {
 	assert(revents & EV_TIMER);
 	game_t* game = io->data;
+
+	double now = loop_ctx_now(game->loop_ctx);
+	if (now - game->last_update >= 1) {
+		game->last_update = now;
+		int i;
+		for (i = 0; i < game->netd_num; i++) {
+			netd_t* netd = game->netd_slot[i];
+			if (netd) {
+				continue;
+			}
+			struct ev_connecter* connecter = game->connecter_slot[i];
+			if (connecter) {
+				continue;
+			}
+			game_connect_netd(game, i, 1);
+		}
+	}
+
+	while (game->deadnetd) {
+		netd_t* netd = game->deadnetd;
+		game->deadnetd = netd->next;
+		game_netd_release(netd);
+	}
+
+	lua_getglobal(game->L, "game_update");
+	if (lua_pcall(game->L, 0, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
+	}
 }
 
 static void
-game_init(game_t* game) {
+game_init(game_t* game, int netd_num) {
+	game->netd_num = netd_num;
 	int i;
-	for (i = 0; i < g_conf.netd_num; i++) {
+	for (i = 0; i < game->netd_num; i++) {
 		while (true) {
 			if (game_connect_netd(game, i, 0) < 0) {
 				usleep(1000 * 1000);
@@ -132,6 +198,11 @@ game_init(game_t* game) {
 				break;
 			}
 		}
+	}
+
+	lua_getglobal(game->L, "game_init");
+	if (lua_pcall(game->L, 0, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
 	}
 }
 
@@ -147,15 +218,17 @@ game_connect_netd(game_t* game, int index, int nonblock) {
 		snprintf(ipc, kMAX_NETD, "%s%02d.ipc", g_conf.netd_ipc, index);
 		strcpy(sa.su.sun_path, ipc);
 		addrlen = sizeof(sa.su);
+		fprintf(stderr, "connect netd:%s\n", sa.su.sun_path);
 	} else {
 		sa.si.sin_family = AF_INET;
 		sa.si.sin_addr.s_addr = inet_addr(g_conf.netd_ip);
 		sa.si.sin_port = htons(g_conf.netd_port + index);
 		addrlen = sizeof(sa.si);
+		fprintf(stderr, "connect netd:%s:%d\n", g_conf.netd_ip, g_conf.netd_port + index);
 	}
 
 	if (nonblock) {
-		game->connecter_slot[index] = ev_connecter_create(game->loop_ctx, (struct sockaddr*)&sa, addrlen, game_netd_complete_connect, index);
+		game->connecter_slot[index] = ev_connecter_create(game->loop_ctx, (struct sockaddr*)&sa, addrlen, game_netd_complete_connect, (void*)&index);
 		return 0;
 	} else {
 		int status = 0;
@@ -189,11 +262,13 @@ game_netd_handle_connect(game_t* game, int index, int fd) {
 
 static void
 game_netd_complete_connect(struct ev_connecter* connecter, int fd, const char* reason, void *userdata) {
+	g_game->connecter_slot[(int)(intptr_t)userdata] = NULL;
+	//free connecter
 	if (fd < 0) {
-		fprintf(stderr, "connect netd:%d error:%s\n", (int)userdata, reason);
+		fprintf(stderr, "connect netd:%d error:%s\n", (int)(intptr_t)userdata, reason);
 		return;
 	}
-	game_netd_handle_connect(g_game, (int)userdata, fd);
+	game_netd_handle_connect(g_game, (int)(intptr_t)userdata, fd);
 }
 
 static void
@@ -270,14 +345,146 @@ game_netd_handle_cmd(netd_t* netd, uint16_t cmd, stream_reader* reader) {
 	g_netd_cmd[cmd](netd, reader);
 }
 
+static void
+game_netd_client_enter(netd_t* netd, stream_reader* reader) {
+	game_t* game = netd->game;
+
+	uint32_t client_id = read_uint32(reader);
+	size_t sz = 0;
+	char* addr = read_string(reader, &sz);
+
+	lua_getglobal(game->L, "client_enter");
+	lua_pushinteger(game->L, client_id);
+	lua_pushstring(game->L, addr);
+	if (lua_pcall(game->L, 2, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
+	}
+}
+
+static void
+game_netd_client_leave(netd_t* netd, stream_reader* reader) {
+	game_t* game = netd->game;
+	uint32_t client_id = read_uint32(reader);
+	lua_getglobal(game->L, "client_leave");
+	lua_pushinteger(game->L, client_id);
+	if (lua_pcall(game->L, 1, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
+	}
+}
+
+static void
+game_netd_client_data(netd_t* netd, stream_reader* reader) {
+	game_t* game = netd->game;
+	uint32_t client_id = read_uint32(reader);
+	uint16_t message_id = read_uint16(reader);
+
+	lua_getglobal(game->L, "client_data");
+	lua_pushinteger(game->L, client_id);
+	lua_pushinteger(game->L, message_id);
+	lua_pushlightuserdata(game->L, reader->data + reader->offset);
+	lua_pushinteger(game->L, reader->size + reader->offset);
+	if (lua_pcall(game->L, 4, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
+	}
+}
+
+static void
+game_netd_update_login_master(netd_t* netd, stream_reader* reader) {
+	game_t* game = netd->game;
+	uint32_t id = read_uint32(reader);
+	if (game->login_master_id == id) {
+		return;
+	}
+	game->login_master_id = id;
+
+	lua_getglobal(game->L, "update_login_master");
+	lua_pushinteger(game->L, id);
+	if (lua_pcall(game->L, 1, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
+	}
+}
+
+static void
+game_netd_update_scene_master(netd_t* netd, stream_reader* reader) {
+	game_t* game = netd->game;
+	uint32_t id = read_uint32(reader);
+	if (game->scene_master_id == id) {
+		return;
+	}
+	game->scene_master_id = id;
+
+	lua_getglobal(game->L, "update_scene_master");
+	lua_pushinteger(game->L, id);
+	if (lua_pcall(game->L, 1, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
+	}
+}
+
+static void
+game_netd_server_down(netd_t* netd, stream_reader* reader) {
+
+}
+
+static void
+game_netd_server_repeat(netd_t* netd, stream_reader* reader) {
+	uint32_t id = read_uint32(reader);
+	fprintf(stderr, "game server:%d repeat\n", id);
+	loop_ctx_break(netd->game->loop_ctx);
+}
+
+static void
+init_conf(const char* file) {
+	memset(&g_conf, 0, sizeof(g_conf));
+
+	lua_State* L = luaL_newstate();
+	if (luaL_loadfile(L, file) != LUA_OK) {
+		fprintf(stderr, "load config:%s\n", lua_tostring(L, -1));
+		exit(1);
+	}
+
+	if (lua_pcall(L, 0, 1, 0) != LUA_OK) {
+		fprintf(stderr, "load config:%s\n", lua_tostring(L, -1));
+		exit(1);
+	}
+
+	luaL_checktype(L, -1, LUA_TTABLE);
+
+#define GET_CONF_INT(L, field, value) \
+	lua_getfield(L, -1, #field);\
+	if (lua_type(L, -1) == LUA_TNUMBER) {\
+		g_conf.field = lua_tointeger(L, -1);\
+	} else {\
+		g_conf.field = value;\
+	}\
+	lua_pop(L, 1);\
+
+#define GET_CONF_STR(L, field) \
+	lua_getfield(L, -1, #field);\
+	if (lua_type(L, -1) == LUA_TSTRING) {\
+		g_conf.field = strdup(lua_tostring(L, -1));\
+	}\
+	lua_pop(L, 1);\
+
+	GET_CONF_INT(L, id, 1);
+	GET_CONF_INT(L, type, 1);
+	GET_CONF_INT(L, netd_num, 1);
+	GET_CONF_STR(L, netd_ip);
+	GET_CONF_INT(L, netd_port, 9999);
+	GET_CONF_STR(L, netd_ipc);
+
+#undef GET_CONF_INT
+#undef GET_CONF_STR
+	lua_close(L);
+}
 
 int main(int argc, const char* argv[]) {
 	assert(argc == 2);
+	init_conf(argv[1]);
 
 	struct ev_loop_ctx* loop_ctx = loop_ctx_create();
 
-	game_t* game = game_create(1, 1);
-
+	game_t* game = game_create(loop_ctx, g_conf.id, g_conf.type);
+	game_init(game, g_conf.netd_num);
 	loop_ctx_dispatch(loop_ctx);
 
 	game_release(game);
