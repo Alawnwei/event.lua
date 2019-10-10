@@ -273,7 +273,7 @@ game_connect_netd(game_t* game, int index, int nonblock) {
 	}
 
 	if (nonblock) {
-		struct ev_connecter* connecter = ev_connecter_create(game->loop_ctx, (struct sockaddr*)&sa, addrlen, game_netd_complete_connect, (void*)&index);
+		struct ev_connecter* connecter = ev_connecter_create(game->loop_ctx, (struct sockaddr*)&sa, addrlen, game_netd_complete_connect, (void*)(intptr_t)index);
 		if (!connecter) {
 			fprintf(stderr, "connect netd error:%s\n", strerror(errno));
 			return -1;
