@@ -787,7 +787,9 @@ int main(int argc, const char* argv[]) {
 		exit(1);
 	}
 	if (g_conf.server_ipc) {
-		if (netd_server_start_with_unix(netd, g_conf.server_ipc) < 0) {
+		char ipc[kMAX_IPC] = { 0 };
+		snprintf(ipc, kMAX_IPC, "%s%02d.ipc", g_conf.server_ipc, g_conf.id);
+		if (netd_server_start_with_unix(netd, ipc) < 0) {
 			fprintf(stderr, "netd server start error:%s\n", strerror(errno));
 			exit(1);
 		}

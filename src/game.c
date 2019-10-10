@@ -86,6 +86,8 @@ static void game_netd_read(struct ev_session* ev_session, void* ud);
 static void game_netd_exit(netd_t* netd, const char* reason);
 static void game_netd_error(struct ev_session* session, void* ud);
 static void game_netd_release(netd_t* netd);
+static void game_netd_send(game_t* game, int id, uint8_t* data, size_t sz);
+static void game_netd_broadcast(game_t* game, uint8_t* data, size_t sz);
 static void game_netd_handle_cmd(netd_t* netd, uint16_t cmd, stream_reader* reader);
 static void game_netd_client_enter(netd_t* netd, stream_reader* reader);
 static void game_netd_client_leave(netd_t* netd, stream_reader* reader);
@@ -134,6 +136,17 @@ game_create(struct ev_loop_ctx* loop_ctx, int id, int type) {
 
 	lua_State* L = luaL_newstate();
 	luaL_openlibs(L);
+
+	if (luaL_loadfile(L, "script/game.lua") != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(L, -1));
+		exit(1);
+	}
+
+	if (lua_pcall(L, 0, 0, 0) != LUA_OK) {
+		fprintf(stderr, "%s\n", lua_tostring(L, -1));
+		exit(1);
+	}
+
 	game->L = L;
 
 	g_game = game;
@@ -147,6 +160,21 @@ game_release(game_t* game) {
 		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
 	}
 	ev_timer_stop(loop_ctx_get(game->loop_ctx), (struct ev_timer*)&game->timer);
+
+	int i;
+	for (i = 0; i < kMAX_NETD; i++) {
+		netd_t* netd = game->netd_slot[i];
+		if (netd) {
+			game_netd_release(netd);
+		}
+	}
+
+	while (game->deadnetd) {
+		netd_t* netd = game->deadnetd;
+		game->deadnetd = netd->next;
+		game_netd_release(netd);
+	}
+
 	lua_close(game->L);
 	free(game);
 }
@@ -200,6 +228,23 @@ game_init(game_t* game, int netd_num) {
 		}
 	}
 
+	for (i = 0; i < game->netd_num; i++) {
+		netd_t* netd = game->netd_slot[i];
+		if (!netd) {
+			continue;
+		}
+		stream_writer writer = writer_init(64);
+		write_uint32(&writer, 0);
+		if (game->type == 0) {
+			write_uint16(&writer, kCMD_SCENE_REGISTER);
+			write_int32(&writer, netd->id);
+		} else {
+			write_uint16(&writer, kCMD_LOGIN_REGISTER);
+			write_int32(&writer, netd->id);
+		}
+		game_netd_send(game, netd->id, writer.data, writer.offset);
+	}
+
 	lua_getglobal(game->L, "game_init");
 	if (lua_pcall(game->L, 0, 0, 0) != LUA_OK) {
 		fprintf(stderr, "%s\n", lua_tostring(game->L, -1));
@@ -214,8 +259,8 @@ game_connect_netd(game_t* game, int index, int nonblock) {
 
 	if (g_conf.netd_ipc) {
 		sa.su.sun_family = AF_UNIX;
-		char ipc[kMAX_NETD] = { 0 };
-		snprintf(ipc, kMAX_NETD, "%s%02d.ipc", g_conf.netd_ipc, index);
+		char ipc[kMAX_IPC] = { 0 };
+		snprintf(ipc, kMAX_IPC, "%s%02d.ipc", g_conf.netd_ipc, index);
 		strcpy(sa.su.sun_path, ipc);
 		addrlen = sizeof(sa.su);
 		fprintf(stderr, "connect netd:%s\n", sa.su.sun_path);
@@ -228,7 +273,12 @@ game_connect_netd(game_t* game, int index, int nonblock) {
 	}
 
 	if (nonblock) {
-		game->connecter_slot[index] = ev_connecter_create(game->loop_ctx, (struct sockaddr*)&sa, addrlen, game_netd_complete_connect, (void*)&index);
+		struct ev_connecter* connecter = ev_connecter_create(game->loop_ctx, (struct sockaddr*)&sa, addrlen, game_netd_complete_connect, (void*)&index);
+		if (!connecter) {
+			fprintf(stderr, "connect netd error:%s\n", strerror(errno));
+			return -1;
+		}
+		game->connecter_slot[index] = connecter;
 		return 0;
 	} else {
 		int status = 0;
@@ -258,6 +308,13 @@ game_netd_handle_connect(game_t* game, int index, int fd) {
 	ev_session_enable(netd->session, EV_READ);
 
 	game->netd_slot[index] = netd;
+
+	stream_writer writer = writer_init(64);
+	write_uint32(&writer, 0);
+	write_uint16(&writer, kCMD_REGISTER);
+	write_int32(&writer, index);
+
+	game_netd_send(game, index, writer.data, writer.offset);
 }
 
 static void
@@ -323,7 +380,7 @@ game_netd_exit(netd_t* netd, const char* reason) {
 	netd->next = game->deadnetd;
 	game->deadnetd = netd;
 	if (netd->id >= 0) {
-		game->netd_slot[game->id] = NULL;
+		game->netd_slot[netd->id] = NULL;
 	}
 }
 
@@ -337,6 +394,34 @@ static void
 game_netd_release(netd_t* netd) {
 	ev_session_free(netd->session);
 	free(netd);
+}
+
+static void
+game_netd_send(game_t* game, int id, uint8_t* data, size_t sz) {
+	netd_t* netd = game->netd_slot[id];
+	if (!netd) {
+		fprintf(stderr, "no netd:%d found\n", id);
+		free(data);
+		return;
+	}
+	*(int*)data = sz;
+	ev_session_write(netd->session, (char*)data, sz);
+}
+
+static void
+game_netd_broadcast(game_t* game, uint8_t* data, size_t sz) {
+	*(int*)data = sz;
+	int i;
+	for (i = 0; i < kMAX_NETD; i++) {
+		netd_t* netd = game->netd_slot[i];
+		if (!netd) {
+			continue;
+		}
+		char* copy = malloc(sz);
+		memcpy(copy, data, sz);
+		ev_session_write(netd->session, copy, sz);
+	}
+	free(data);
 }
 
 static void
@@ -453,16 +538,16 @@ init_conf(const char* file) {
 	lua_getfield(L, -1, #field);\
 	if (lua_type(L, -1) == LUA_TNUMBER) {\
 		g_conf.field = lua_tointeger(L, -1);\
-	} else {\
+			} else {\
 		g_conf.field = value;\
-	}\
+			}\
 	lua_pop(L, 1);\
 
 #define GET_CONF_STR(L, field) \
 	lua_getfield(L, -1, #field);\
 	if (lua_type(L, -1) == LUA_TSTRING) {\
 		g_conf.field = strdup(lua_tostring(L, -1));\
-	}\
+			}\
 	lua_pop(L, 1);\
 
 	GET_CONF_INT(L, id, 1);
