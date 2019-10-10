@@ -1,8 +1,19 @@
-#ifndef NETD_H
-#define NETD_H
+#ifndef CONSTANSTS_H
+#define CONSTANSTS_H
 
 
+#define kCACHED             1024 * 1024
+#define kERROR              64
+#define kMAX_IPC            64
+#define kCLIENT_HEADER      2
+#define kSERVER_HEADER      4
+#define kNETD_HEADER        4
+#define kMAX_SERVER         64
+#define kMAX_NETD           16
 
+#define kWARN_OUTPUT_FLOW 	1024 * 10
+#define kMAX_CLIENT_PACKET  1024 * 6
+#define kMAX_SERVER_PACKET  1024 * 1024 * 16
 
 #define kCMD_REGISTER             0
 #define kCMD_LOGIN_REGISTER       1
@@ -19,6 +30,5 @@
 #define kCMD_CLIENT_ENTER         12
 #define kCMD_CLIENT_LEAVE         13
 #define kCMD_CLIENT_DATA          14
-
 
 #endif

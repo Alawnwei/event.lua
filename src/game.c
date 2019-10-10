@@ -1,4 +1,4 @@
-#include "game.h"
+#include "constants.h"
 #include "stream.h"
 #include "lua.h"
 #include "lauxlib.h"
@@ -6,12 +6,6 @@
 #include "common/encrypt.h"
 #include "common/object_container.h"
 #include <stdint.h>
-
-#define kCACHED   1024 * 1024
-#define kERROR    64
-#define kMAX_NETD 16
-#define kMAX_IPC  64
-#define kNETD_HEADER 4
 
 struct netd;
 

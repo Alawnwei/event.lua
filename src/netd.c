@@ -1,4 +1,4 @@
-#include "netd.h"
+#include "constants.h"
 #include "stream.h"
 #include "lua.h"
 #include "lauxlib.h"
@@ -6,16 +6,6 @@
 #include "common/encrypt.h"
 #include "common/object_container.h"
 #include <stdint.h>
-
-
-#define kCACHED      		1024 * 1024
-#define kWARN_OUTPUT_FLOW 	1024 * 10
-#define kMAX_CLIENT_PACKET  1024 * 6
-#define kMAX_SERVER_PACKET  1024 * 1024 * 16
-#define kCLIENT_HEADER      2
-#define kSERVER_HEADER      4
-#define kERROR              64
-#define kMAX_SERVER         64
 
 
 #define SLOT(id,max) (id - (id / max) * max)
