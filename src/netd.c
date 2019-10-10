@@ -133,7 +133,7 @@ static server_cmd_func g_server_cmd[] = {
 
 __thread uint8_t t_cached[kCACHED];
 
-conf_t g_conf;
+static conf_t g_conf;
 
 static inline uint8_t*
 get_buffer(uint32_t size) {
@@ -775,6 +775,8 @@ init_conf(const char* file) {
 	GET_CONF_INT(L, max_freq, 100);
 	GET_CONF_INT(L, max_alive, 60);
 
+#undef GET_CONF_INT
+#undef GET_CONF_STR
 	lua_close(L);
 }
 
