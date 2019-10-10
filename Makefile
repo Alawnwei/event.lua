@@ -42,9 +42,9 @@ CONVERT_OBJ = $(patsubst %.c,%.o,$(patsubst %.cpp,%.o,$(CONVERT_SRC)))
 DOUBLE_CONVERSION_SRC ?= $(wildcard $(CONVERT_PATH)/double-conversion/*.cc)
 DOUBLE_CONVERSION_OBJ = $(patsubst %.cc,%.o,$(DOUBLE_CONVERSION_SRC)) 
 
-MAIN_PATH ?= ./src
-MAIN_SRC ?= ./src/main.c ./src/inspector.c
-MAIN_OBJ = $(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(MAIN_SRC)))
+SERVICE_PATH ?= ./src
+SERVICE_SRC ?= ./src/service.c ./src/inspector.c
+SERVICE_OBJ = $(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(SERVICE_SRC)))
 
 NETD_SRC = ./src/netd.c ./src/inspector.c ./luaclib/socket/socket_tcp.c ./luaclib/socket/socket_util.c ./luaclib/socket/ring_buffer.c ./luaclib/common/encrypt.c ./luaclib/common/object_container.c
 NETD_OBJ = $(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(NETD_SRC)))
@@ -53,10 +53,8 @@ GAME_SRC ?= ./src/game.c ./src/inspector.c ./luaclib/socket/socket_tcp.c ./luacl
 GAME_OBJ = $(patsubst %.c,%.o,$(patsubst %.cc,%.o,$(GAME_SRC)))
 
 
-TARGET ?= event
-
+SERVICE ?= service
 NETD ?= netd
-
 GAME ?= game
 
 CC=gcc
@@ -74,11 +72,11 @@ all : \
 	$(LIBCURL_SHARE_LIB) \
 	$(LIBARES_SHARE_LIB) \
 	$(STATIC_LIBS) \
-	$(TARGET) \
+	$(SERVICE) \
 	$(NETD) \
 	$(GAME) \
 	$(foreach v, $(LUA_CLIB), $(LUA_CLIB_PATH)/$(v).so) 
-	cp $(TARGET) $(TARGET).raw && strip $(TARGET).raw
+	cp $(SERVICE) $(SERVICE).raw && strip $(SERVICE).raw
 
 $(LUA_STATIC_LIB) :
 	cd $(LUA_PATH) && make linux
@@ -125,7 +123,7 @@ libc :
 efence :
 	$(MAKE) $(ALL) DEFINE="" STATIC_LIBS="$(LUA_STATIC_LIB) $(LIBEVENT_STATIC_LIB) $(EFENCE_STATIC_LIB)" LDFLAGS="-lrt -lm -ldl -lpthread -lssl -lstdc++"
 
-$(TARGET) : $(MAIN_OBJ) $(STATIC_LIBS) $(LIBEV_SHARE_LIB)
+$(SERVICE) : $(SERVICE_OBJ) $(STATIC_LIBS) $(LIBEV_SHARE_LIB)
 	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) -I./$(LIBEV_INC) -Wl,-E
 
 $(NETD) : $(NETD_OBJ) $(STATIC_LIBS) $(LIBEV_STATIC_LIB)
@@ -207,11 +205,11 @@ $(LUA_CLIB_PATH)/snapshot.so : $(LUA_CLIB_SRC)/lua-snapshot.c | $(LUA_CLIB_PATH)
 	$(CC) $(CFLAGS) $(SHARED) $^ -o $@ -I$(LUA_INC)
 	
 clean :
-	rm -rf $(TARGET) $(TARGET).raw
+	rm -rf $(SERVICE)
 	rm -rf $(NETD)
 	rm -rf $(GAME)
 	rm -rf $(LUA_CLIB_PATH)
-	rm -rf $(MAIN_OBJ)
+	rm -rf $(SERVICE_OBJ)
 	rm -rf $(NETD_OBJ)
 	rm -rf $(GAME_OBJ)
 	rm -rf luaclib/convert/milo/*.o
