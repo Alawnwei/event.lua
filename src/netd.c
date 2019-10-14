@@ -776,6 +776,7 @@ init_conf(const char* file) {
 }
 
 int main(int argc, const char* argv[]) {
+	printf("%d\n",((unsigned short)~0));
 	assert(argc == 2);
 	init_conf(argv[1]);
 

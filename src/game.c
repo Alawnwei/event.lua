@@ -273,6 +273,10 @@ game_connect_netd(game_t* game, int index, int nonblock) {
 	}
 
 	if (nonblock) {
+		if (game->connecter_slot[index]) {
+			fprintf(stderr, "netd connecting");
+			return -1;
+		}
 		struct ev_connecter* connecter = ev_connecter_create(game->loop_ctx, (struct sockaddr*)&sa, addrlen, game_netd_complete_connect, (void*)(intptr_t)index);
 		if (!connecter) {
 			fprintf(stderr, "connect netd error:%s\n", strerror(errno));
@@ -538,16 +542,16 @@ init_conf(const char* file) {
 	lua_getfield(L, -1, #field);\
 	if (lua_type(L, -1) == LUA_TNUMBER) {\
 		g_conf.field = lua_tointeger(L, -1);\
-			} else {\
+	} else {\
 		g_conf.field = value;\
-			}\
+	}\
 	lua_pop(L, 1);\
 
 #define GET_CONF_STR(L, field) \
 	lua_getfield(L, -1, #field);\
 	if (lua_type(L, -1) == LUA_TSTRING) {\
 		g_conf.field = strdup(lua_tostring(L, -1));\
-			}\
+	}\
 	lua_pop(L, 1);\
 
 	GET_CONF_INT(L, id, 1);
